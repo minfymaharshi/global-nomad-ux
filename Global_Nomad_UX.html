@@ -1,0 +1,2534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Global Nomad</title>
+<meta name="description" content="Food delivery for emergencies. Working prototype — made-up data, real arithmetic, no server.">
+<!--
+================================================================================
+ GLOBAL NOMAD — working prototype
+ One file. No build step, no server, no downloads, works with no signal.
+
+ GROUND RULES BUILT INTO THIS FILE
+   · Made-up data, real arithmetic. No number on screen is typed by hand —
+     every one comes out of CALC (§3). Checked by CHECK.numbers().
+   · No server. Waiting, failing and going offline are all faked in SIM (§6)
+     so any flow can be made to break on purpose.
+   · Plain words. No system language in the interface. Every label goes
+     through TERMS (§1). Checked by CHECK.words().
+   · Greys only until a look is agreed. Meaning never comes from colour.
+   · Motion is real but small, and always switches off for people who ask
+     for less movement. Checked by CHECK.motion().
+   · WCAG 2.2 AA on phone and desktop. Checked by A11Y.audit().
+
+ CONTENTS
+   CSS   1 foundations   2 base + access   3 motion   4 control bar
+         5 device frames 6 app layout      7 components  8 states  9 widths
+   JS    1 TERMS      words, per region, easy to extend
+         2 REGIONS    place profiles + data, easy to extend
+         3 CALC       the arithmetic, pure functions, no screen does its own
+         4 STORE      state + saving
+         5 FMT        showing values the local way
+         6 SIM        fake waiting and failing
+         7 A11Y       announcing, focus, contrast check
+         8 MOTION     the agreed set
+         9 DEVICES    phone sizes
+        10 U          components
+        11 PERSONAS
+        12 SCREENS    one contract, written out at §12
+        13 SHELL      control bar, frames, routing
+        14 CHECK      words / numbers / motion checks
+        15 BOOT
+
+ ADDING A PLACE
+   Add one entry to REGIONS and, if the words differ, one entry to TERMS.
+   Nothing else changes. Screens never mention a place by name.
+
+ SPLITTING FOR GIT
+   Sections are numbered and only ever depend on lower numbers. Cut each
+   into its own file, load in order. Only GN (§15) crosses the boundary.
+================================================================================
+-->
+<style>
+/* ========================================================= 1 foundations */
+:root {
+  /* greys, very slightly cool. Chosen, then contrast-checked — A11Y.audit() */
+  --bg:          #E9EAEC;
+  --paper:       #FFFFFF;
+  --paper-2:     #F5F6F7;
+  --paper-3:     #ECEEEF;
+
+  --rule:        #C7CACE;   /* dividers only                    1.6:1      */
+  --rule-soft:   #DEE0E3;
+  --edge:        #7E848C;   /* edges of things you can touch     3.1:1+  ✓ */
+
+  --text:        #1C1F22;   /* main text                        16.6:1  ✓ */
+  --text-2:      #474C51;   /* second-level text                 8.7:1  ✓ */
+  --text-3:      #656A70;   /* smallest text allowed             4.5:1+ ✓ */
+  --ghost:       #A5AAB0;   /* DECORATION ONLY — never text       2.3:1    */
+
+  --solid:       #2C3135;   /* main button                                */
+  --on-solid:    #FFFFFF;
+
+  /* meaning colours. Shape and words carry the message too — never colour
+     alone. Each is ≥4.5:1 on its own tint. */
+  --good: #2E5E4B;  --good-bg: #E8F0EC;
+  --hold: #6A5623;  --hold-bg: #F4F0E6;
+  --stop: #7C3535;  --stop-bg: #F6EAEA;
+  --note: #35526B;  --note-bg: #E8EDF1;
+
+  /* system fonts: nothing to download, nothing shifts, works offline */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --figs: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* type. Phone sizes are bigger on purpose — read outdoors, one hand. */
+  --t-body-web: 14px;   --t-body-mob: 17px;
+  --t-small-web: 12px;  --t-small-mob: 13px;
+  --t-h1-web: 21px;     --t-h1-mob: 22px;
+  --t-h2: 15px;         --t-h3: 13.5px;
+
+  /* spacing: one 4px step, used everywhere, no in-between values */
+  --sp1: 4px; --sp2: 8px; --sp3: 12px; --sp4: 16px;
+  --sp5: 24px; --sp6: 32px; --sp7: 48px;
+
+  --r1: 3px; --r2: 5px; --r3: 8px; --round: 99px;
+
+  /* touch: 24px is the floor anywhere, 44px inside a phone */
+  --tap: 32px; --tap-mob: 44px;
+
+  --lift-1: 0 1px 2px rgba(28,31,34,.07);
+  --lift-2: 0 4px 16px rgba(28,31,34,.12);
+  --lift-3: 0 16px 44px rgba(28,31,34,.22);
+
+  --side-w: 220px;
+
+  /* motion. Only movement and fading. Nothing here animates layout. */
+  --m-tap:    120ms;
+  --m-panel:  240ms;
+  --m-page:   280ms;
+  --m-arrive: 200ms;
+  --m-leave:  160ms;
+  --ease:     cubic-bezier(.2, 0, .2, 1);
+  --ease-in:  cubic-bezier(.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, .2, 1);
+}
+
+/* ==================================================== 2 base + access */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font); font-size: var(--t-body-web); line-height: 1.5;
+  -webkit-font-smoothing: antialiased; overflow: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+
+/* focus you cannot miss: 2px ring, offset, high contrast (2.4.7 / 2.4.13) */
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: var(--r1); }
+/* keep a focused row clear of a sticky edge (2.4.11) */
+.stage, .m-body, .page, .sheet-body { scroll-padding: 64px 0; }
+
+p, li, dd { overflow-wrap: break-word; }   /* survives wider text spacing */
+
+.vh { position: absolute !important; width: 1px; height: 1px; padding: 0;
+      margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.cap { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.figs { font-family: var(--figs); font-size: .92em; }
+.line { display: flex; align-items: center; gap: var(--sp3); }
+.line.wrap { flex-wrap: wrap; }
+.fill { flex: 1 1 auto; min-width: 0; }
+.col { display: flex; flex-direction: column; }
+
+/* ============================================================= 3 motion */
+/* One switch turns every animation off. Honoured by the system setting and
+   by the "Less movement" control in the bar. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important; animation-delay: 0ms !important;
+    transition-duration: 1ms !important; transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after {
+  animation-duration: 1ms !important; animation-delay: 0ms !important;
+  transition-duration: 1ms !important; transition-delay: 0ms !important;
+}
+
+@keyframes m-rise   { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes m-sheet  { from { transform: translateY(24px); }             to { transform: none; } }
+@keyframes m-fade   { from { opacity: 0; }                             to { opacity: 1; } }
+@keyframes m-slide  { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@keyframes m-spin   { to { transform: rotate(360deg); } }
+@keyframes m-pulse  { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes m-nudge  { 0%,100% { transform: none; } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+.m-in     { animation: m-rise  var(--m-arrive) var(--ease-out) both; }
+.m-page   { animation: m-slide var(--m-page)   var(--ease)     both; }
+.m-wrong  { animation: m-nudge var(--m-panel)  var(--ease)     both; }
+
+/* ======================================================== 4 control bar */
+#app { display: flex; flex-direction: column; height: 100%; }
+
+.bar { flex: 0 0 auto; background: var(--paper-3); border-bottom: 1px solid var(--edge); }
+.bar__row {
+  display: flex; align-items: center; gap: var(--sp4) var(--sp5);
+  padding: var(--sp2) var(--sp4); flex-wrap: wrap;
+}
+.bar[data-shut="true"] .bar__row { display: none; }
+.bar[data-shut="true"] { background: none; border-bottom: 0; }
+
+.grp { display: flex; align-items: center; gap: var(--sp2); }
+.grp > .cap { white-space: nowrap; }
+
+.pick { display: inline-flex; background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r2); padding: 2px; }
+.pick button {
+  background: none; border: 0; border-radius: var(--r1);
+  padding: 0 12px; min-height: calc(var(--tap) - 6px); min-width: 44px;
+  font-size: 12.5px; font-weight: 500; color: var(--text-2); white-space: nowrap;
+  transition: background var(--m-tap) var(--ease), color var(--m-tap) var(--ease);
+}
+.pick button:hover:not([aria-pressed="true"]) { background: var(--paper-2); }
+.pick button[aria-pressed="true"] { background: var(--solid); color: var(--on-solid); }
+
+.drop {
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r2);
+  padding: 0 26px 0 10px; min-height: var(--tap); font-size: 12.5px; max-width: 230px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%),
+                    linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+  background-position: calc(100% - 14px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.icon-btn {
+  display: inline-grid; place-items: center; min-width: var(--tap); min-height: var(--tap);
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r2);
+  color: var(--text-2); transition: background var(--m-tap) var(--ease);
+}
+.icon-btn:hover { background: var(--paper-2); }
+.icon-btn[aria-pressed="true"] { background: var(--solid); border-color: var(--solid); color: var(--on-solid); }
+
+/* who am I */
+.who { position: relative; }
+.who__btn {
+  display: flex; align-items: center; gap: var(--sp3);
+  min-width: 250px; min-height: var(--tap); padding: 4px 10px 4px 5px;
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r2); text-align: left;
+  transition: background var(--m-tap) var(--ease);
+}
+.who__btn:hover { background: var(--paper-2); }
+.tag2 {
+  flex: 0 0 28px; height: 28px; border-radius: var(--r1);
+  background: var(--solid); color: var(--on-solid);
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+}
+.who__name { flex: 1 1 auto; min-width: 0; }
+.who__name b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.who__name span { display: block; font-size: 11px; color: var(--text-3); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.who__list {
+  position: absolute; top: calc(100% + 5px); left: 0; z-index: 90;
+  width: min(420px, calc(100vw - 24px)); max-height: 72vh; overflow-y: auto;
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r3);
+  box-shadow: var(--lift-3); padding: var(--sp2);
+  animation: m-rise var(--m-panel) var(--ease-out) both;
+}
+.who__list[hidden] { display: none; }
+.who__group { padding: 10px 10px 5px; border-top: 1px solid var(--rule-soft); margin-top: 4px; }
+.who__group:first-child { border-top: 0; margin-top: 0; }
+.who__opt {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: var(--sp3); align-items: center;
+  width: 100%; min-height: var(--tap-mob); background: none; border: 0; border-radius: var(--r2);
+  padding: 7px 10px; text-align: left; transition: background var(--m-tap) var(--ease);
+}
+.who__opt:hover { background: var(--paper-2); }
+.who__opt[aria-current="true"] { background: var(--paper-3); box-shadow: inset 2px 0 0 var(--solid); }
+.who__opt b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.who__opt small { display: block; font-size: 11.5px; color: var(--text-3); }
+.who__foot { border-top: 1px solid var(--rule-soft); margin-top: var(--sp2);
+  padding: var(--sp3) 10px 4px; display: flex; align-items: center; gap: var(--sp3); }
+.who__foot p { margin: 0; font-size: 11.5px; color: var(--text-3); flex: 1 1 auto; }
+
+/* shut state */
+.bar__open {
+  display: none; align-items: center; gap: var(--sp2);
+  margin: var(--sp2) var(--sp4); min-height: var(--tap); padding: 4px 12px 4px 5px;
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--round);
+  box-shadow: var(--lift-1); animation: m-fade var(--m-arrive) both;
+}
+.bar[data-shut="true"] .bar__open { display: inline-flex; }
+.bar__open .tag2 { flex-basis: 24px; height: 24px; font-size: 10px; }
+.bar__open span { font-size: 12px; font-weight: 600; }
+.bar__open em { font-style: normal; font-size: 11px; color: var(--text-3); }
+
+.bar .bar__more { display: none; }
+.sheet-body { display: flex; flex-direction: column; gap: var(--sp5); }
+.sheet-body .grp { flex-wrap: wrap; }
+
+/* ======================================================= 5 device frames */
+.stage {
+  flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--sp5) var(--sp4);
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.frame { flex: 0 0 auto; max-width: 100%; }
+.frame__cap { display: flex; align-items: center; gap: var(--sp2) var(--sp3);
+  margin-bottom: var(--sp2); flex-wrap: wrap; }
+.frame__cap .cap { white-space: nowrap; }
+
+.frame.desk { width: 100%; max-width: 1300px; }
+.frame.desk .kit {
+  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r3);
+  overflow: hidden; box-shadow: var(--lift-2);
+}
+
+/* the phone keeps its exact pixel size and is scaled to fit the window */
+.zoombox { position: relative; flex: 0 0 auto; overflow: hidden; }
+.zoom { transform-origin: top left; }
+.frame.hand .kit {
+  position: relative; background: var(--paper);
+  border: 9px solid #23262A; border-radius: 34px; overflow: hidden;
+  box-shadow: var(--lift-3); display: flex; flex-direction: column;
+}
+.frame.hand.slate .kit { border-radius: 18px; border-width: 12px; }
+.frame.hand.plain .kit { border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: none; }
+
+.phonebar {
+  flex: 0 0 30px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; font-family: var(--figs); font-size: 11px; color: var(--text-2);
+  background: var(--paper); z-index: 3;
+}
+.lens { position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  width: 92px; height: 20px; border-radius: var(--round); background: #23262A; z-index: 5; }
+.frame.hand.wide .lens, .frame.hand.slate .lens, .frame.hand.plain .lens { display: none; }
+
+/* ========================================================= 6 app layout */
+.kit-in { display: flex; min-height: 620px; container-type: inline-size; container-name: app; }
+.kit-in.hand { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+  font-size: var(--t-body-mob); }
+
+.side {
+  flex: 0 0 var(--side-w); background: var(--paper-2); border-right: 1px solid var(--rule);
+  display: flex; flex-direction: column; padding: var(--sp4) 0;
+}
+.side__me { padding: 0 var(--sp4) var(--sp4); border-bottom: 1px solid var(--rule-soft); margin-bottom: var(--sp3); }
+.side__me b { display: block; font-size: 13.5px; font-weight: 650; }
+.side__me span { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.side__sees { display: block; margin-top: 7px; font-size: 11.5px; color: var(--text-2); }
+.side__sees b { display: inline; font-weight: 650; }
+.side__list { display: flex; flex-direction: column; gap: 1px; padding: 0 var(--sp2); }
+.side__item {
+  display: flex; align-items: center; gap: var(--sp2); width: 100%; min-height: var(--tap);
+  text-align: left; text-decoration: none; background: none; border: 0; border-radius: var(--r2);
+  padding: 6px 10px; font-size: 13px; color: var(--text-2);
+  transition: background var(--m-tap) var(--ease), color var(--m-tap) var(--ease);
+}
+.side__item:hover { background: var(--paper-3); color: var(--text); }
+.side__item[aria-current="page"] { background: var(--paper); color: var(--text); font-weight: 650;
+  box-shadow: inset 2px 0 0 var(--solid); }
+.count {
+  margin-left: auto; background: var(--solid); color: var(--on-solid); border-radius: var(--round);
+  font-size: 10.5px; font-weight: 700; padding: 1px 6px; min-width: 19px; text-align: center;
+}
+
+.page-wrap { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.page-top { display: flex; align-items: center; gap: var(--sp3); padding: var(--sp3) var(--sp5);
+  border-bottom: 1px solid var(--rule); }
+.trail { font-size: 12.5px; color: var(--text-3); }
+.trail b { color: var(--text); font-weight: 650; }
+.page { padding: var(--sp5); flex: 1 1 auto; }
+
+h1.t1 { font-size: var(--t-h1-web); font-weight: 650; letter-spacing: -.011em; margin: 0 0 4px; }
+p.lede { font-size: 13.5px; color: var(--text-3); margin: 0 0 var(--sp5); max-width: 66ch; }
+h2.t2 { font-size: var(--t-h2); font-weight: 650; margin: var(--sp6) 0 var(--sp3); }
+h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2); }
+.kit-in.hand h1.t1 { font-size: var(--t-h1-mob); }
+.kit-in.hand p.lede { font-size: 14.5px; max-width: 56ch; }
+
+/* phone */
+.m-top { flex: 0 0 auto; display: flex; align-items: center; gap: var(--sp2);
+  padding: var(--sp2) var(--sp3); border-bottom: 1px solid var(--rule); background: var(--paper); }
+.m-top b { font-size: 17px; font-weight: 650; }
+.m-body { flex: 1 1 auto; overflow-y: auto; padding: var(--sp4); -webkit-overflow-scrolling: touch; }
+.m-tabs { flex: 0 0 auto; display: flex; border-top: 1px solid var(--rule); background: var(--paper-2); }
+.m-tab {
+  flex: 1 1 0; min-height: var(--tap-mob); background: none; border: 0; padding: 7px 2px 6px;
+  font-size: 11px; color: var(--text-3); text-align: center; line-height: 1.2; position: relative;
+  transition: color var(--m-tap) var(--ease);
+}
+.m-tab svg { display: block; margin: 0 auto 4px; }
+.m-tab[aria-current="page"] { color: var(--text); font-weight: 650; }
+.m-tab .count { position: absolute; top: 4px; left: 55%; margin: 0; background: var(--stop); }
+
+/* everything touchable is 44px inside a phone */
+.kit-in.hand .btn { min-height: var(--tap-mob); min-width: var(--tap-mob); }
+.kit-in.hand .btn.wide { min-width: 0; }
+.kit-in.hand .side__item { min-height: var(--tap-mob); }
+.kit-in.hand .in, .kit-in.hand .sel, .kit-in.hand .drop { min-height: var(--tap-mob); }
+.kit-in.hand .num-set button { min-width: var(--tap-mob); min-height: var(--tap-mob); }
+
+/* ========================================================= 7 components */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--tap); min-width: var(--tap);
+  background: var(--paper); border: 1px solid var(--edge); color: var(--text);
+  border-radius: var(--r2); padding: 6px 14px; font-size: 13px; font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--m-tap) var(--ease), border-color var(--m-tap) var(--ease),
+              transform var(--m-tap) var(--ease);
+}
+.btn:hover:not(:disabled) { background: var(--paper-2); }
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn.go { background: var(--solid); border-color: var(--solid); color: var(--on-solid); }
+.btn.go:hover:not(:disabled) { background: #3A4045; border-color: #3A4045; }
+.btn.warn-btn { border-color: var(--stop); color: var(--stop); }
+.btn.warn-btn:hover:not(:disabled) { background: var(--stop-bg); }
+.btn.quiet { background: none; border-color: transparent; color: var(--text-2); }
+.btn.quiet:hover:not(:disabled) { background: var(--paper-2); }
+.btn.small { min-height: 26px; padding: 3px 10px; font-size: 12px; }
+.btn.big { min-height: var(--tap-mob); padding: 11px 20px; font-size: 14.5px; }
+.btn.wide { width: 100%; min-width: 0; }
+.spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: m-spin .6s linear infinite; }
+
+/* icons: drawn inline, thick strokes, no fine detail */
+.ico { flex: 0 0 auto; }
+.ico line, .ico path, .ico circle, .ico rect, .ico polyline, .ico polygon {
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.ico.filled path, .ico.filled circle, .ico.filled rect { fill: currentColor; stroke: none; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: var(--round);
+  border: 1px solid var(--edge); color: var(--text-2); white-space: nowrap;
+}
+.chip.good { border-color: var(--good); color: var(--good); background: var(--good-bg); }
+.chip.hold { border-color: var(--hold); color: var(--hold); background: var(--hold-bg); }
+.chip.stop { border-color: var(--stop); color: var(--stop); background: var(--stop-bg); }
+.chip.note { border-color: var(--note); color: var(--note); background: var(--note-bg); }
+.chip.solid { background: var(--solid); border-color: var(--solid); color: var(--on-solid); }
+.kit-in.hand .chip { font-size: 12px; padding: 3px 9px; }
+
+.box { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r2); padding: var(--sp4); }
+.box.soft { border-color: var(--rule-soft); }
+.box.flush { padding: 0; }
+.box__top { display: flex; align-items: center; gap: var(--sp3); padding: var(--sp3) var(--sp4);
+  border-bottom: 1px solid var(--rule-soft); }
+.box__top h3 { margin: 0; font-size: var(--t-h3); font-weight: 650; }
+.box__mid { padding: var(--sp4); }
+.box__end { padding: var(--sp3) var(--sp4); border-top: 1px solid var(--rule-soft);
+  background: var(--paper-2); display: flex; gap: var(--sp2); align-items: center; flex-wrap: wrap; }
+
+.rows { display: grid; gap: var(--sp3); }
+.rows.two   { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.rows.three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr)); }
+.rows.four  { grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); }
+
+.figure b { display: block; font-size: 20px; font-weight: 650; letter-spacing: -.015em;
+  font-variant-numeric: tabular-nums; }
+.figure span { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.kit-in.hand .figure b { font-size: 22px; }
+.kit-in.hand .figure span { font-size: 12.5px; }
+
+/* asking for something */
+.ask { display: block; margin-bottom: var(--sp4); }
+.ask > .ask__label { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 5px; }
+.kit-in.hand .ask > .ask__label { font-size: 14px; }
+.ask .tip { font-size: 11.5px; color: var(--text-3); margin: 4px 0 0; }
+.ask .wrong { font-size: 12px; color: var(--stop); margin: 5px 0 0; display: flex; gap: 5px;
+  align-items: flex-start; font-weight: 500; }
+.in, .sel, .note-in {
+  width: 100%; min-height: var(--tap); background: var(--paper);
+  border: 1px solid var(--edge); border-radius: var(--r2); padding: 7px 10px; font-size: 13.5px;
+  transition: border-color var(--m-tap) var(--ease);
+}
+.kit-in.hand .in, .kit-in.hand .sel, .kit-in.hand .note-in { font-size: 16px; }  /* no zoom-on-focus */
+.in::placeholder, .note-in::placeholder { color: var(--text-3); }
+.in:focus, .sel:focus, .note-in:focus { border-color: var(--solid); outline: 2px solid var(--text); outline-offset: 1px; }
+.ask.bad .in, .ask.bad .sel, .ask.bad .note-in { border-color: var(--stop); border-width: 2px; }
+.note-in { min-height: 78px; resize: vertical; }
+
+.num-set { display: inline-flex; align-items: stretch; border: 1px solid var(--edge);
+  border-radius: var(--r2); overflow: hidden; background: var(--paper); }
+.num-set button { background: var(--paper-2); border: 0; min-width: var(--tap); min-height: var(--tap);
+  color: var(--text); transition: background var(--m-tap) var(--ease); }
+.num-set button:hover:not(:disabled) { background: var(--paper-3); }
+.num-set input { width: 64px; border: 0; text-align: center; padding: 6px 2px;
+  font-variant-numeric: tabular-nums; font-size: 14px; }
+.num-set input:focus { outline: 2px solid var(--text); outline-offset: -2px; }
+.kit-in.hand .num-set input { width: 72px; font-size: 17px; }
+
+.tick { display: flex; gap: var(--sp2); align-items: flex-start; padding: 6px 0; min-height: var(--tap); }
+.tick input { margin: 3px 0 0; width: 18px; height: 18px; }
+.tick span { font-size: 13px; }
+.tick small { display: block; color: var(--text-3); font-size: 11.5px; }
+.kit-in.hand .tick { min-height: var(--tap-mob); }
+.kit-in.hand .tick span { font-size: 15px; }
+
+/* lists of things */
+.grid-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r2); background: var(--paper); }
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th {
+  text-align: left; font-size: 11px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-3); padding: 9px 12px; border-bottom: 1px solid var(--rule);
+  background: var(--paper-2); white-space: nowrap;
+}
+table.grid td { padding: 9px 12px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+table.grid tbody tr:last-child td { border-bottom: 0; }
+table.grid tbody tr.on { background: var(--paper-3); }
+table.grid tbody tr.tapable { cursor: pointer; transition: background var(--m-tap) var(--ease); }
+table.grid tbody tr.tapable:hover { background: var(--paper-2); }
+.figs-col { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* narrow: rows stack with their own labels — nothing scrolls sideways */
+@container app (max-width: 560px) {
+  table.grid, table.grid tbody, table.grid tr, table.grid td { display: block; width: 100%; }
+  table.grid thead { display: none; }
+  table.grid tr { border-bottom: 1px solid var(--rule); padding: var(--sp2) 0; }
+  table.grid tr:last-child { border-bottom: 0; }
+  table.grid td { border: 0; padding: 3px 12px; display: flex; gap: var(--sp3); }
+  table.grid td::before {
+    content: attr(data-label); flex: 0 0 42%;
+    font-size: 11px; font-weight: 650; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  table.grid td.figs-col { text-align: left; }
+}
+
+/* telling you something went wrong */
+.say {
+  display: flex; gap: var(--sp3); align-items: flex-start; flex-wrap: wrap;
+  border: 1px solid var(--edge); border-left-width: 4px; border-radius: var(--r2);
+  padding: var(--sp3) var(--sp4); margin-bottom: var(--sp4); background: var(--paper);
+  animation: m-rise var(--m-arrive) var(--ease-out) both;
+}
+.say.stop { border-color: var(--stop); border-left-color: var(--stop); background: var(--stop-bg); }
+.say.hold { border-color: var(--hold); border-left-color: var(--hold); background: var(--hold-bg); }
+.say.good { border-color: var(--good); border-left-color: var(--good); background: var(--good-bg); }
+.say.note { border-color: var(--note); border-left-color: var(--note); background: var(--note-bg); }
+.say b { display: block; font-size: 13px; font-weight: 650; }
+.say p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-2); }
+.say__do { margin-left: auto; display: flex; gap: var(--sp2); flex: 0 0 auto; }
+.kit-in.hand .say b { font-size: 15px; }
+.kit-in.hand .say p { font-size: 14px; }
+
+/* brief messages */
+.notes { position: fixed; z-index: 130; right: var(--sp4); bottom: var(--sp4);
+  display: flex; flex-direction: column; gap: var(--sp2);
+  width: min(340px, calc(100vw - 32px)); pointer-events: none; }
+.note-card {
+  pointer-events: auto; background: var(--text); color: #fff; border-radius: var(--r2);
+  padding: 10px var(--sp3) 10px var(--sp4); box-shadow: var(--lift-2);
+  display: flex; gap: var(--sp3); align-items: flex-start;
+  animation: m-rise var(--m-arrive) var(--ease-out) both;
+}
+.note-card b { display: block; font-size: 13px; font-weight: 650; }
+.note-card span { display: block; font-size: 12px; opacity: .85; margin-top: 2px; }
+.note-card.stop { background: #6B2E2E; }
+.note-card.good { background: #27503F; }
+.note-card__x { background: none; border: 0; color: inherit; opacity: .75;
+  min-width: 28px; min-height: 28px; font-size: 16px; line-height: 1; }
+.note-card__x:hover { opacity: 1; }
+
+/* asking you to decide */
+.veil {
+  position: fixed; inset: 0; z-index: 120; background: rgba(28,31,34,.46);
+  display: flex; align-items: center; justify-content: center; padding: var(--sp4);
+  animation: m-fade var(--m-panel) var(--ease-out) both;
+}
+.panel { background: var(--paper); border-radius: var(--r3); box-shadow: var(--lift-3);
+  width: 100%; max-width: 470px; max-height: 88vh; overflow-y: auto;
+  animation: m-rise var(--m-panel) var(--ease-out) both; }
+.panel__top { padding: var(--sp5) var(--sp5) 0; }
+.panel__top h2 { margin: 0; font-size: 16.5px; font-weight: 650; }
+.panel__mid { padding: var(--sp3) var(--sp5) var(--sp4); font-size: 13.5px; color: var(--text-2); }
+.panel__end { padding: var(--sp3) var(--sp5) var(--sp5); display: flex; gap: var(--sp2);
+  justify-content: flex-end; flex-wrap: wrap; }
+.veil.up { align-items: flex-end; padding: 0; }
+.veil.up .panel { max-width: none; border-radius: var(--r3) var(--r3) 0 0;
+  animation: m-sheet var(--m-panel) var(--ease-out) both; }
+
+.steps { display: flex; gap: 0; margin: 0 0 var(--sp5); padding: 0; list-style: none; flex-wrap: wrap; }
+.steps li { flex: 1 1 130px; border-top: 3px solid var(--rule); padding: var(--sp2) var(--sp3) 0 0;
+  transition: border-color var(--m-panel) var(--ease); }
+.steps li b { display: block; font-family: var(--figs); font-size: 10.5px; color: var(--text-3); }
+.steps li span { display: block; font-size: 12.5px; color: var(--text-3); }
+.steps li.was { border-top-color: var(--text-2); }
+.steps li.was b, .steps li.was span { color: var(--text-2); }
+.steps li.now { border-top-color: var(--solid); }
+.steps li.now b, .steps li.now span { color: var(--text); }
+.steps li.now span { font-weight: 650; }
+
+.meter { height: 6px; border-radius: var(--round); background: var(--paper-3);
+  overflow: hidden; border: 1px solid var(--rule); }
+/* scaled, not resized — animating width makes the phone redo layout */
+.meter i { display: block; height: 100%; width: 100%; background: var(--solid);
+  transform-origin: left center; transition: transform var(--m-page) var(--ease); }
+
+/* ============================================================= 8 states */
+.none {
+  border: 1px dashed var(--edge); border-radius: var(--r2);
+  padding: var(--sp7) var(--sp5); text-align: center; background: var(--paper-2);
+}
+.none b { display: block; font-size: 14px; font-weight: 650; }
+.none p { margin: 6px auto 0; font-size: 13px; color: var(--text-3); max-width: 46ch; }
+.none .btn { margin-top: var(--sp4); }
+.bone { background: var(--paper-3); border-radius: var(--r1); animation: m-pulse 1.3s ease-in-out infinite; }
+.later { border: 1px dashed var(--edge); border-radius: var(--r2); background: var(--paper-2); padding: var(--sp5); }
+.later b { display: block; font-size: 14px; font-weight: 650; }
+.later p { margin: 6px 0 0; font-size: 13px; color: var(--text-3); max-width: 56ch; }
+
+/* ============================================================= 9 widths */
+@media (max-width: 1180px) { .bar__row { gap: var(--sp3) var(--sp4); } .who__btn { min-width: 200px; } }
+@media (max-width: 900px) {
+  .bar__row { padding: var(--sp2) var(--sp3); }
+  .bar__row .grp.extra { display: none; }
+  .bar .bar__more { display: inline-flex; }
+  .who__btn { min-width: 0; }
+  .who__name span { display: none; }
+  .stage { padding: var(--sp3); }
+  .page, .page-top { padding-left: var(--sp4); padding-right: var(--sp4); }
+}
+@media (max-width: 560px) {
+  .grp > .cap { display: none; }
+  .kit-in { min-height: 0; }
+  .page { padding: var(--sp4) var(--sp3); }
+}
+/* the side list folds on the FRAME's width, so a narrow frame on a big
+   monitor behaves exactly like a narrow window */
+.page-top .side-open { display: none; }
+@container app (max-width: 700px) {
+  .side { display: none; }
+  .page-top .side-open { display: inline-flex; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="say-quiet" class="vh" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="say-loud"  class="vh" role="alert"  aria-live="assertive" aria-atomic="true"></div>
+<div class="notes" id="notes" aria-hidden="true"></div>
+<noscript style="display:block;padding:40px;font-family:sans-serif">
+  This needs JavaScript. It runs entirely in your browser — no server, no network calls.
+</noscript>
+
+<script>
+/* ==============================================================================
+   1 · TERMS — the words
+   ------------------------------------------------------------------------------
+   Every label in the interface comes from here. Two reasons:
+     · one place to keep the language plain, and one place to fix it
+     · places can differ. A camp in the Emirates is a shelter in the States.
+   Add a place: add its overrides under REGIONS.<id>.terms. Anything not
+   overridden falls back to _base. Screens never hard-code a noun.
+   ============================================================================== */
+var TERMS = {
+  _base: {
+    site:'Site',            sites:'Sites',
+    store:'Warehouse',      stores:'Warehouses',
+    request:'Request',      requests:'Requests',
+    kit:'Kit',              kits:'Kits',
+    delivery:'Delivery',    deliveries:'Deliveries',
+    emergency:'Emergency',  emergencies:'Emergencies',
+    org:'Organisation',     orgs:'Organisations',
+    driver:'Driver',        drivers:'Drivers',
+    vehicle:'Vehicle',      vehicles:'Vehicles',
+    item:'Item',            items:'Items',
+    batch:'Batch',          batches:'Batches',
+    stock:'Stock',
+    handover:'Handover',
+    area:'Area'
+  }
+};
+function T(key) {
+  var r = Store && Store.s ? REGIONS[Store.s.place] : null;
+  return (r && r.terms && r.terms[key]) || TERMS._base[key] || key;
+}
+/* lower-case, for use mid-sentence */
+function t(key) { var s = T(key); return s.charAt(0).toLowerCase() + s.slice(1); }
+
+/* Job titles. Plain, not system roles. */
+var JOBS = {
+  ADMIN:        'Platform admin',
+  RELIEF_LEAD:  'Relief lead',
+  SITE_LEAD:    'Site lead',
+  STORE_LEAD:   'Warehouse lead',
+  STOCK_KEEPER: 'Stock keeper',
+  SENDER:       'Send-out planner',
+  BUYER:        'Buyer',
+  DRIVER:       'Driver'
+};
+
+/* Statuses. Stored as codes, always shown through this map. */
+var STATUS = {
+  DRAFT:            'Draft',
+  SENT:             'Sent',
+  SEEN:             'Seen by warehouse',
+  STOCK_HELD:       'Stock set aside',
+  WAITING_STOCK:    'Waiting for stock',
+  ON_THE_WAY:       'On the way',
+  ARRIVED:          'Arrived',
+  DONE:             'Complete',
+  PART_DONE:        'Part delivered',
+  TURNED_DOWN:      'Turned down',
+  CANCELLED:        'Cancelled',
+  FREE:             'Free',
+  ON_A_JOB:         'On a job',
+  OFF_SHIFT:        'Off shift',
+  IN_STORE:         'In the warehouse',
+  SET_ASIDE:        'Set aside',
+  LOADED:           'Loaded',
+  HANDED_OVER:      'Handed over',
+  EXPECTED:         'On order',
+  PAST_DATE:        'Past its date'
+};
+function statusWord(code) { return STATUS[code] || code; }
+
+
+/* ==============================================================================
+   2 · REGIONS — the places
+   ------------------------------------------------------------------------------
+   Locale and data only. No behaviour differs between places.
+
+   TO ADD A PLACE: copy one of these blocks, change the contents, done.
+   Record IDs are deliberately the SAME in every place (STORE-04, SITE-01,
+   DRIVER-01…) so screens read IDs and the place supplies the content.
+   Values are stored metric; FMT (§5) converts for showing.
+   ============================================================================== */
+var REGIONS = {
+
+  AE: {
+    id:'AE', short:'UAE', name:'United Arab Emirates',
+    locale:'en-GB', zone:'Asia/Dubai', clock:24, money:'AED',
+    measures:{ weight:'kg', length:'km', heat:'C' },
+    areaWord:'Emirate', areaList:['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'],
+    postWord:null, phoneShape:'+971 5X XXX XXXX',
+    speech:[ {code:'en', name:'English', flow:'ltr'}, {code:'ar', name:'العربية', flow:'rtl'} ],
+    terms:{ site:'Relief camp', sites:'Relief camps', area:'Emirate' },
+
+    world: function () { return {
+      orgs:[
+        {id:'ORG-GN', kind:'PLATFORM', name:'Global Nomad',            status:'ACTIVE'},
+        {id:'ORG-R1', kind:'RELIEF',   name:'Crescent Relief',         status:'ACTIVE'},
+        {id:'ORG-R2', kind:'RELIEF',   name:'Gulf Humanitarian Trust', status:'WAITING'},
+        {id:'ORG-W1', kind:'STORAGE',  name:'GN Logistics',            status:'ACTIVE'},
+        {id:'ORG-W2', kind:'STORAGE',  name:'Northern Chain Partners', status:'ACTIVE'}
+      ],
+      people:[
+        {id:'P-ADMIN', org:'ORG-GN', job:'ADMIN',        name:'Priya Raghavan',    phone:'+971 50 000 0001'},
+        {id:'P-LEAD',  org:'ORG-R1', job:'RELIEF_LEAD',  name:'Layla Haddad',      phone:'+971 50 000 0011'},
+        {id:'P-SITE',  org:'ORG-R1', job:'SITE_LEAD',    name:'Omar Farouk',       phone:'+971 50 000 0012'},
+        {id:'P-STORE', org:'ORG-W1', job:'STORE_LEAD',   name:'Ahmed Siddiqui',    phone:'+971 50 000 0021'},
+        {id:'P-STOCK', org:'ORG-W1', job:'STOCK_KEEPER', name:'Grace Okonkwo',     phone:'+971 50 000 0022'},
+        {id:'P-SEND',  org:'ORG-W1', job:'SENDER',       name:'Rashid Al Blooshi', phone:'+971 50 000 0023'},
+        {id:'P-BUY',   org:'ORG-W1', job:'BUYER',        name:'Nadia Kovacs',      phone:'+971 50 000 0024'},
+        {id:'P-DRIVE', org:'ORG-W1', job:'DRIVER',       name:'Imran Qureshi',     phone:'+971 50 000 0101'}
+      ],
+      emergencies:[
+        {id:'EM-01', code:'NE-FLOOD-014', kind:'Flood', name:'Northern Emirates flood',
+         level:'Severity 4 of 5', declared:'2026-08-24T06:15:00+04:00',
+         lat:25.86, lng:56.02, reach_m:25000, status:'ACTIVE',
+         note:'Flash flooding across Ras Al Khaimah wadis after three days of rain. Road access to coastal settlements comes and goes.'}
+      ],
+      sites:[
+        {id:'SITE-01', org:'ORG-R1', emergency:'EM-01', name:'Al Rams shelter',            street:'Al Rams community hall, Al Rams Road', area:'Ras Al Khaimah', lat:25.8710, lng:56.0290, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
+        {id:'SITE-02', org:'ORG-R1', emergency:'EM-01', name:"Sha'am community centre",    street:"Sha'am coastal road",                  area:'Ras Al Khaimah', lat:25.9820, lng:56.1010, people:920,  room:1100, lead:null,    status:'ACTIVE'},
+        {id:'SITE-03', org:'ORG-R1', emergency:'EM-01', name:'Wadi Haqil camp',            street:'Wadi Haqil, off E11',                  area:'Ras Al Khaimah', lat:25.8310, lng:56.0040, people:2400, room:2600, lead:null,    status:'ACTIVE'}
+      ],
+      stores:[
+        {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Jebel Ali distribution hub', area:'Dubai',          lat:24.9905, lng:55.0920, pallets:2400, chilled:true },
+        {id:'STORE-02', org:'ORG-W1', runBy:'PLATFORM', name:'Al Quoz staging depot',      area:'Dubai',          lat:25.1320, lng:55.2280, pallets:900,  chilled:false},
+        {id:'STORE-03', org:'ORG-W2', runBy:'PARTNER',  name:'Sharjah industrial store',   area:'Sharjah',        lat:25.3210, lng:55.4180, pallets:1200, chilled:true },
+        {id:'STORE-04', org:'ORG-W1', runBy:'PLATFORM', name:'Ajman coastal depot',        area:'Ajman',          lat:25.4050, lng:55.4780, pallets:1600, chilled:false},
+        {id:'STORE-05', org:'ORG-R1', runBy:'RELIEF',   name:'RAK forward store',          area:'Ras Al Khaimah', lat:25.7480, lng:55.9430, pallets:180,  chilled:false}
+      ],
+      items:[
+        {id:'IT-01', code:'RICE-5',  name:'Rice, 5 kg',                  group:'Staple',   unit:'pack', kg:5.00, keeps:false},
+        {id:'IT-02', code:'FLR-5',   name:'Wheat flour, 5 kg',           group:'Staple',   unit:'pack', kg:5.00, keeps:false},
+        {id:'IT-03', code:'LEN-2',   name:'Lentils, 2 kg',               group:'Protein',  unit:'pack', kg:2.00, keeps:false},
+        {id:'IT-04', code:'OIL-1',   name:'Cooking oil, 1 L',            group:'Staple',   unit:'each', kg:0.92, keeps:false},
+        {id:'IT-05', code:'DAT-500', name:'Dates, 500 g',                group:'Staple',   unit:'pack', kg:0.50, keeps:false},
+        {id:'IT-06', code:'TUN-200', name:'Canned tuna, 200 g',          group:'Protein',  unit:'each', kg:0.20, keeps:false},
+        {id:'IT-07', code:'WTR-5',   name:'Drinking water, 5 L',         group:'Water',    unit:'each', kg:5.00, keeps:false},
+        {id:'IT-08', code:'INF-400', name:'Baby formula, 400 g',         group:'Baby',     unit:'each', kg:0.40, keeps:false},
+        {id:'IT-09', code:'ORS-20',  name:'Rehydration sachets, 20',     group:'Medical',  unit:'pack', kg:0.20, keeps:false},
+        {id:'IT-10', code:'BIS-300', name:'High-energy biscuits, 300 g', group:'Staple',   unit:'pack', kg:0.30, keeps:false},
+        {id:'IT-11', code:'SUG-1',   name:'Sugar, 1 kg',                 group:'Staple',   unit:'pack', kg:1.00, keeps:false},
+        {id:'IT-12', code:'MLK-1',   name:'Long-life milk, 1 L',         group:'Protein',  unit:'each', kg:1.03, keeps:true }
+      ],
+      kits:[
+        {id:'KIT-MAIN', name:'Flood kit',        feeds:5, days:7,
+         holds:[['IT-01',1],['IT-02',1],['IT-03',1],['IT-04',2],['IT-07',4],['IT-10',4],['IT-09',1]]},
+        {id:'KIT-WEEK', name:'Family food box',  feeds:5, days:7,
+         holds:[['IT-01',1],['IT-03',2],['IT-04',1],['IT-05',2],['IT-06',6],['IT-11',1],['IT-07',2]]},
+        {id:'KIT-BABY', name:'Baby and child kit', feeds:2, days:14,
+         holds:[['IT-08',4],['IT-12',6],['IT-10',4],['IT-09',2]]}
+      ],
+      vehicles:[
+        {id:'VAN-01', store:'STORE-04', plate:'AJM 41287', kind:'3 tonne truck', kg:3000, status:'FREE'},
+        {id:'VAN-02', store:'STORE-04', plate:'AJM 58019', kind:'7 tonne truck', kg:7000, status:'FREE'},
+        {id:'VAN-03', store:'STORE-04', plate:'AJM 22740', kind:'Van',           kg:1200, status:'FREE'},
+        {id:'VAN-04', store:'STORE-05', plate:'RAK 10944', kind:'Van',           kg:1200, status:'FREE'}
+      ],
+      drivers:[
+        {id:'DRIVER-01', person:'P-DRIVE', store:'STORE-04', name:'Imran Qureshi', phone:'+971 50 000 0101', vehicle:'VAN-02', status:'FREE'},
+        {id:'DRIVER-02', person:null,      store:'STORE-04', name:'Deepak Menon',  phone:'+971 50 000 0102', vehicle:'VAN-01', status:'FREE'},
+        {id:'DRIVER-03', person:null,      store:'STORE-04', name:'Yusuf Bello',   phone:'+971 50 000 0103', vehicle:'VAN-03', status:'OFF_SHIFT'}
+      ]
+    }; }
+  },
+
+  US: {
+    id:'US', short:'US', name:'United States',
+    locale:'en-US', zone:'America/Chicago', clock:12, money:'USD',
+    measures:{ weight:'lb', length:'mi', heat:'F' },
+    areaWord:'State', areaList:['Texas','Louisiana','Mississippi','Alabama','Florida'],
+    postWord:'ZIP code', phoneShape:'+1 (XXX) XXX-XXXX',
+    speech:[ {code:'en', name:'English', flow:'ltr'}, {code:'es', name:'Español', flow:'ltr'} ],
+    terms:{ site:'Shelter', sites:'Shelters', area:'State' },
+
+    world: function () { return {
+      orgs:[
+        {id:'ORG-GN', kind:'PLATFORM', name:'Global Nomad',              status:'ACTIVE'},
+        {id:'ORG-R1', kind:'RELIEF',   name:'Gulf Coast Relief',         status:'ACTIVE'},
+        {id:'ORG-R2', kind:'RELIEF',   name:'Bayou Community Aid',       status:'WAITING'},
+        {id:'ORG-W1', kind:'STORAGE',  name:'GN Logistics',              status:'ACTIVE'},
+        {id:'ORG-W2', kind:'STORAGE',  name:'Delta Cold Chain Partners', status:'ACTIVE'}
+      ],
+      people:[
+        {id:'P-ADMIN', org:'ORG-GN', job:'ADMIN',        name:'Dana Whitfield', phone:'+1 (713) 000-0001'},
+        {id:'P-LEAD',  org:'ORG-R1', job:'RELIEF_LEAD',  name:'Marcus Ellery',  phone:'+1 (713) 000-0011'},
+        {id:'P-SITE',  org:'ORG-R1', job:'SITE_LEAD',    name:'Rosa Delgado',   phone:'+1 (337) 000-0012'},
+        {id:'P-STORE', org:'ORG-W1', job:'STORE_LEAD',   name:'Terrence Boyd',  phone:'+1 (409) 000-0021'},
+        {id:'P-STOCK', org:'ORG-W1', job:'STOCK_KEEPER', name:'Aileen Novak',   phone:'+1 (409) 000-0022'},
+        {id:'P-SEND',  org:'ORG-W1', job:'SENDER',       name:'Curtis Hale',    phone:'+1 (409) 000-0023'},
+        {id:'P-BUY',   org:'ORG-W1', job:'BUYER',        name:'Simone Trask',   phone:'+1 (409) 000-0024'},
+        {id:'P-DRIVE', org:'ORG-W1', job:'DRIVER',       name:'Wes Carrington', phone:'+1 (409) 000-0101'}
+      ],
+      emergencies:[
+        {id:'EM-01', code:'GC-HURR-021', kind:'Hurricane', name:'Hurricane Marisol',
+         level:'Category 3', declared:'2026-08-24T06:15:00-05:00',
+         lat:30.05, lng:-93.20, reach_m:90000, status:'ACTIVE',
+         note:'Category 3 landfall west of Cameron Parish. Storm surge and inland flooding across southwest Louisiana and southeast Texas. Interstate access comes and goes.'}
+      ],
+      sites:[
+        {id:'SITE-01', org:'ORG-R1', emergency:'EM-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
+        {id:'SITE-02', org:'ORG-R1', emergency:'EM-01', name:'Sulphur community center',  street:'101 N Huntington St, Sulphur',   area:'Louisiana', post:'70663', lat:30.2366, lng:-93.3774, people:920,  room:1100, lead:null,    status:'ACTIVE'},
+        {id:'SITE-03', org:'ORG-R1', emergency:'EM-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE'}
+      ],
+      stores:[
+        {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Houston distribution center', area:'Texas',     post:'77032', lat:29.9844, lng:-95.3414, pallets:2400, chilled:true },
+        {id:'STORE-02', org:'ORG-W1', runBy:'PLATFORM', name:'Baton Rouge staging depot',   area:'Louisiana', post:'70805', lat:30.4915, lng:-91.1571, pallets:900,  chilled:false},
+        {id:'STORE-03', org:'ORG-W2', runBy:'PARTNER',  name:'Mobile industrial store',     area:'Alabama',   post:'36607', lat:30.6954, lng:-88.0399, pallets:1200, chilled:true },
+        {id:'STORE-04', org:'ORG-W1', runBy:'PLATFORM', name:'Beaumont coastal depot',      area:'Texas',     post:'77705', lat:30.0402, lng:-94.1066, pallets:1600, chilled:false},
+        {id:'STORE-05', org:'ORG-R1', runBy:'RELIEF',   name:'Lafayette forward store',     area:'Louisiana', post:'70508', lat:30.1841, lng:-92.0198, pallets:180,  chilled:false}
+      ],
+      items:[
+        {id:'IT-01', code:'RICE-10', name:'Rice, 10 lb',                 group:'Staple',  unit:'bag',  kg:4.54, keeps:false},
+        {id:'IT-02', code:'FLR-10',  name:'Flour, 10 lb',                group:'Staple',  unit:'bag',  kg:4.54, keeps:false},
+        {id:'IT-03', code:'BEAN-4',  name:'Dried beans, 4 lb',           group:'Protein', unit:'bag',  kg:1.81, keeps:false},
+        {id:'IT-04', code:'OIL-48',  name:'Cooking oil, 48 fl oz',       group:'Staple',  unit:'each', kg:1.36, keeps:false},
+        {id:'IT-05', code:'PNB-40',  name:'Peanut butter, 40 oz',        group:'Protein', unit:'each', kg:1.13, keeps:false},
+        {id:'IT-06', code:'TUN-5',   name:'Canned tuna, 5 oz',           group:'Protein', unit:'each', kg:0.14, keeps:false},
+        {id:'IT-07', code:'WTR-1G',  name:'Drinking water, 1 gal',       group:'Water',   unit:'each', kg:3.79, keeps:false},
+        {id:'IT-08', code:'INF-124', name:'Baby formula, 12.4 oz',       group:'Baby',    unit:'each', kg:0.35, keeps:false},
+        {id:'IT-09', code:'ORS-20',  name:'Rehydration packets, 20',     group:'Medical', unit:'box',  kg:0.20, keeps:false},
+        {id:'IT-10', code:'BAR-12',  name:'High-energy bars, 12',        group:'Staple',  unit:'box',  kg:0.34, keeps:false},
+        {id:'IT-11', code:'SUG-4',   name:'Sugar, 4 lb',                 group:'Staple',  unit:'bag',  kg:1.81, keeps:false},
+        {id:'IT-12', code:'MLK-32',  name:'Shelf-stable milk, 32 fl oz', group:'Protein', unit:'each', kg:0.97, keeps:true }
+      ],
+      kits:[
+        {id:'KIT-MAIN', name:'Hurricane kit',      feeds:5, days:7,
+         holds:[['IT-01',1],['IT-02',1],['IT-03',1],['IT-04',1],['IT-07',6],['IT-10',4],['IT-09',1]]},
+        {id:'KIT-WEEK', name:'Family food box',    feeds:5, days:7,
+         holds:[['IT-01',1],['IT-03',2],['IT-04',1],['IT-05',1],['IT-06',8],['IT-11',1],['IT-07',4]]},
+        {id:'KIT-BABY', name:'Baby and child kit', feeds:2, days:14,
+         holds:[['IT-08',4],['IT-12',6],['IT-10',4],['IT-09',2]]}
+      ],
+      vehicles:[
+        {id:'VAN-01', store:'STORE-04', plate:'TX 8241KP', kind:'16 ft box truck', kg:3000, status:'FREE'},
+        {id:'VAN-02', store:'STORE-04', plate:'TX 5590RB', kind:'26 ft box truck', kg:7000, status:'FREE'},
+        {id:'VAN-03', store:'STORE-04', plate:'TX 3374ND', kind:'Cargo van',       kg:1200, status:'FREE'},
+        {id:'VAN-04', store:'STORE-05', plate:'LA 7712WD', kind:'Cargo van',       kg:1200, status:'FREE'}
+      ],
+      drivers:[
+        {id:'DRIVER-01', person:'P-DRIVE', store:'STORE-04', name:'Wes Carrington', phone:'+1 (409) 000-0101', vehicle:'VAN-02', status:'FREE'},
+        {id:'DRIVER-02', person:null,      store:'STORE-04', name:'Dwayne Pryor',   phone:'+1 (409) 000-0102', vehicle:'VAN-01', status:'FREE'},
+        {id:'DRIVER-03', person:null,      store:'STORE-04', name:'Luis Obando',    phone:'+1 (409) 000-0103', vehicle:'VAN-03', status:'OFF_SHIFT'}
+      ]
+    }; }
+  }
+};
+
+/* Stock is generated, not typed twice, so every place behaves identically.
+   Baby formula is deliberately short across the network — that shortage is
+   what the "not enough stock" recovery flow is demonstrated on. */
+function makeStock(placeId) {
+  var plan = [
+    ['STORE-04','IT-01',900],['STORE-04','IT-02',700],['STORE-04','IT-03',1200],['STORE-04','IT-04',1500],
+    ['STORE-04','IT-05',600],['STORE-04','IT-06',2400],['STORE-04','IT-07',3600],['STORE-04','IT-08',60],
+    ['STORE-04','IT-09',800],['STORE-04','IT-10',2000],['STORE-04','IT-11',700],['STORE-04','IT-12',900],
+    ['STORE-05','IT-01',120],['STORE-05','IT-07',400],['STORE-05','IT-10',300],
+    ['STORE-03','IT-01',500],['STORE-03','IT-08',40], ['STORE-03','IT-07',1800],
+    ['STORE-01','IT-01',3200],['STORE-01','IT-07',9000],['STORE-01','IT-02',2200],
+    ['STORE-02','IT-10',1400],['STORE-02','IT-06',1600]
+  ];
+  var dates = ['2028-03-30','2027-11-14','2028-05-02','2027-08-19','2027-04-11','2028-09-01',
+               '2027-07-25','2027-06-30','2028-01-20','2027-03-08','2028-02-16','2026-11-12'];
+  return plan.map(function (row, i) {
+    var n = i + 1;
+    return {
+      id: 'LOT-' + ('000' + n).slice(-4),
+      store: row[0], item: row[1],
+      batch: (placeId === 'US' ? 'B' : 'A') + '26-' + ('000' + (100 + n * 7)).slice(-4),
+      have: row[2], held: 0,
+      useBy: dates[i % dates.length],
+      status: 'IN_STORE'
+    };
+  });
+}
+</script>
+
+<script>
+/* ==============================================================================
+   3 · CALC — the arithmetic
+   ------------------------------------------------------------------------------
+   Every number shown anywhere comes out of here. Pure functions: they read
+   what you pass in, return a result, and change nothing. No screen does its
+   own sums and no screen contains a made-up figure.
+   Checked by CHECK.numbers().
+   ============================================================================== */
+var CALC = {
+
+  /* one kit, multiplied out into the things actually in it */
+  kitContents: function (kit, howMany) {
+    if (!kit) return [];
+    return kit.holds.map(function (h) {
+      return { item: h[0], each: h[1], qty: h[1] * howMany };
+    });
+  },
+
+  /* what a whole request needs, in things rather than kits */
+  needsOf: function (lines, kitLookup) {
+    var total = {};
+    (lines || []).forEach(function (l) {
+      if (l.kit) {
+        CALC.kitContents(kitLookup(l.kit), l.qty).forEach(function (c) {
+          total[c.item] = (total[c.item] || 0) + c.qty;
+        });
+      } else if (l.item) {
+        total[l.item] = (total[l.item] || 0) + l.qty;
+      }
+    });
+    return Object.keys(total).map(function (id) { return { item: id, qty: total[id] }; });
+  },
+
+  /* how much of one thing is genuinely available in one warehouse */
+  freeStock: function (lots, storeId, itemId) {
+    return lots.reduce(function (n, lot) {
+      if (lot.store !== storeId || lot.item !== itemId) return n;
+      if (lot.status !== 'IN_STORE' && lot.status !== 'SET_ASIDE') return n;
+      return n + Math.max(0, lot.have - lot.held);
+    }, 0);
+  },
+
+  /* plan how to set stock aside: oldest use-by date first, so nothing spoils
+     on a shelf while newer stock ships. Returns a plan; changes nothing. */
+  planHold: function (lots, storeId, itemId, want) {
+    var pick = lots.filter(function (lot) {
+      return lot.store === storeId && lot.item === itemId &&
+             lot.status === 'IN_STORE' && (lot.have - lot.held) > 0;
+    }).sort(function (a, b) { return (a.useBy || '') < (b.useBy || '') ? -1 : 1; });
+
+    var left = want, takes = [];
+    pick.forEach(function (lot) {
+      if (left <= 0) return;
+      var can = lot.have - lot.held;
+      var take = Math.min(can, left);
+      takes.push({ lot: lot.id, qty: take, batch: lot.batch, useBy: lot.useBy });
+      left -= take;
+    });
+    return { takes: takes, got: want - left, short: left };
+  },
+
+  /* how many complete kits a set of holds can actually make up */
+  wholeKits: function (kit, gotByItem) {
+    if (!kit) return 0;
+    var least = Infinity;
+    kit.holds.forEach(function (h) {
+      least = Math.min(least, Math.floor((gotByItem[h[0]] || 0) / h[1]));
+    });
+    return least === Infinity ? 0 : least;
+  },
+
+  weightOf: function (rows, itemLookup) {
+    return (rows || []).reduce(function (kg, r) {
+      var it = itemLookup(r.item);
+      return kg + (it ? it.kg * r.qty : 0);
+    }, 0);
+  },
+
+  fitsIn: function (kg, vehicle) {
+    if (!vehicle) return { fits: false, over: kg, use: 0 };
+    return {
+      fits: kg <= vehicle.kg,
+      over: Math.max(0, kg - vehicle.kg),
+      use: vehicle.kg ? Math.min(100, (kg / vehicle.kg) * 100) : 0
+    };
+  },
+
+  /* straight-line distance in metres */
+  gapBetween: function (aLat, aLng, bLat, bLng) {
+    var Rm = 6371000, rad = Math.PI / 180;
+    var dLat = (bLat - aLat) * rad, dLng = (bLng - aLng) * rad;
+    var s = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return Math.round(2 * Rm * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s)));
+  },
+
+  /* road distance is longer than straight-line; 1.3 is a normal allowance */
+  roadFactor: 1.3,
+  roadDistance: function (metres) { return Math.round(metres * CALC.roadFactor); },
+
+  travelMinutes: function (metres, kph) {
+    if (!kph) kph = 50;
+    return Math.max(1, Math.round((metres / 1000) / kph * 60));
+  },
+
+  arriveBy: function (fromMs, metres, kph) {
+    return new Date(fromMs + CALC.travelMinutes(metres, kph) * 60000).toISOString();
+  },
+
+  percent: function (part, whole) { return whole ? (part / whole) * 100 : 0; },
+
+  daysLeft: function (useBy, fromMs) {
+    if (!useBy) return null;
+    return Math.round((new Date(useBy).getTime() - (fromMs || Date.now())) / 86400000);
+  },
+
+  /* how much of what was asked for actually arrived */
+  fillRate: function (asked, given) { return CALC.percent(given, asked); },
+
+  sum: function (arr, pick) {
+    return (arr || []).reduce(function (n, x) { return n + (pick ? pick(x) : x); }, 0);
+  }
+};
+
+
+/* ==============================================================================
+   4 · STORE — what the app knows
+   ------------------------------------------------------------------------------
+   Kept in memory, saved to this browser so a demo survives a refresh and
+   something done as one person is visible to the next. Every change goes
+   through change(), which saves and redraws.
+   ============================================================================== */
+var Store = (function () {
+  var KEY = 'gn-ux-v1';
+  var now = null, watchers = [];
+
+  function build(placeId) {
+    var place = REGIONS[placeId] || REGIONS.AE;
+    var w = place.world();
+    return {
+      place: place.id, speech: place.speech[0].code, motion: 'on', counters: {},
+      orgs: w.orgs, people: w.people, emergencies: w.emergencies, sites: w.sites,
+      stores: w.stores, items: w.items, kits: w.kits, vehicles: w.vehicles,
+      drivers: w.drivers, lots: makeStock(place.id),
+      /* built up as journeys are played */
+      requests: [], requestLines: [], holds: [],
+      deliveries: [], stops: [], loadLines: [],
+      handovers: [], problems: [], orders: [], orderLines: [],
+      alerts: [], history: []
+    };
+  }
+
+  function read() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { var p = JSON.parse(raw); if (p && p.orgs && p.place) return p; }
+    } catch (e) { /* blocked storage — carry on without saving */ }
+    return build('AE');
+  }
+  function write() { try { localStorage.setItem(KEY, JSON.stringify(now)); } catch (e) {} }
+  function tell() { watchers.forEach(function (f) { try { f(now); } catch (e) { console.error(e); } }); }
+
+  return {
+    start: function () { now = read(); },
+    get s() { return now; },
+    get place() { return REGIONS[now.place]; },
+
+    wipe:     function () { now = build(now.place); write(); tell(); },
+    setPlace: function (id) { now = build(id); write(); tell(); },
+    setSpeech:function (c) { now.speech = c; write(); tell(); },
+    setMotion:function (v) { now.motion = v; write(); tell(); },
+
+    watch: function (f) { watchers.push(f); return function () { var i = watchers.indexOf(f); if (i > -1) watchers.splice(i, 1); }; },
+    change: function (fn) { var out = fn(now); write(); tell(); return out; },
+
+    one: function (kind, id) {
+      var a = now[kind] || [];
+      for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i];
+      return null;
+    },
+    many: function (kind, test) { return (now[kind] || []).filter(test); },
+
+    nextId: function (prefix) {
+      now.counters[prefix] = (now.counters[prefix] || 0) + 1;
+      return prefix + '-' + ('0000' + now.counters[prefix]).slice(-4);
+    },
+
+    /* a plain record of what happened, so a demo can show it really did */
+    note: function (what, detail, who) {
+      now.history.unshift({ id: Store.nextId('LOG'), at: new Date().toISOString(),
+        what: what, detail: detail || null, who: who || null });
+      if (now.history.length > 300) now.history.length = 300;
+    },
+    tellJob: function (job, headline, detail, how) {
+      now.alerts.unshift({ id: Store.nextId('ALERT'), job: job, headline: headline,
+        detail: detail || null, how: how || 'IN_APP', at: new Date().toISOString(), seen: false });
+    }
+  };
+})();
+
+
+/* ==============================================================================
+   5 · FMT — showing values the local way
+   Values are stored metric. Conversion happens here and nowhere else.
+   ============================================================================== */
+var FMT = (function () {
+  function P() { return Store.place; }
+  return {
+    count: function (v) { return v == null ? '—' : Number(v).toLocaleString(P().locale); },
+
+    money: function (v) {
+      if (v == null) return '—';
+      try { return new Intl.NumberFormat(P().locale, { style: 'currency', currency: P().money }).format(v); }
+      catch (e) { return P().money + ' ' + Number(v).toFixed(2); }
+    },
+
+    weight: function (kg) {
+      if (kg == null) return '—';
+      if (P().measures.weight === 'lb') {
+        var lb = kg * 2.20462;
+        return lb >= 2000 ? (lb / 2000).toFixed(2) + ' tons' : Math.round(lb).toLocaleString(P().locale) + ' lb';
+      }
+      return kg >= 1000 ? (kg / 1000).toFixed(2) + ' t' : Math.round(kg).toLocaleString(P().locale) + ' kg';
+    },
+
+    length: function (m) {
+      if (m == null) return '—';
+      return P().measures.length === 'mi'
+        ? (m / 1609.344).toFixed(1) + ' mi'
+        : (m / 1000).toFixed(1) + ' km';
+    },
+
+    heat: function (c) {
+      if (c == null) return '—';
+      return P().measures.heat === 'F' ? Math.round(c * 9 / 5 + 32) + ' °F' : Math.round(c) + ' °C';
+    },
+
+    day: function (iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleDateString(P().locale, { day: 'numeric', month: 'short', timeZone: P().zone });
+    },
+    clock: function (iso) {
+      if (!iso) return '—';
+      var h12 = P().clock === 12;
+      return new Date(iso).toLocaleTimeString(P().locale, {
+        hour: h12 ? 'numeric' : '2-digit', minute: '2-digit', hour12: h12, timeZone: P().zone });
+    },
+    when: function (iso) { return iso ? FMT.day(iso) + ', ' + FMT.clock(iso) : '—'; },
+
+    ago: function (iso) {
+      if (!iso) return '—';
+      var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return m + ' min ago';
+      var h = Math.round(m / 60);
+      if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+      return FMT.day(iso);
+    },
+
+    /* 0 → "none", 1 → "1 hour", 90 → "1 hr 30 min" */
+    minutes: function (mins) {
+      if (mins == null) return '—';
+      if (mins < 60) return mins + ' min';
+      var h = Math.floor(mins / 60), m = mins % 60;
+      return h + ' hr' + (m ? ' ' + m + ' min' : '');
+    },
+
+    portion: function (pc) { return Math.round(pc) + '%'; },
+
+    where: function (rec) {
+      if (!rec) return '—';
+      return [rec.area, rec.post].filter(Boolean).join(' ');
+    }
+  };
+})();
+
+
+/* ==============================================================================
+   6 · SIM — fake waiting and failing
+   ------------------------------------------------------------------------------
+   There is no server. Everything slow or broken happens here, so any flow can
+   be made to fail on purpose and the way out of it can be shown.
+
+   The failures kept as standard, each with a written way out:
+     MISSING    something was not filled in
+     TAKEN      someone else claimed the stock first
+     SHORT      there is not enough stock
+     DROPPED    the connection went before it saved
+     OFFLINE    no signal, so it waits in a queue
+     BARRED     this person is not allowed to do that
+     STALE      the screen is out of date
+   ============================================================================== */
+var SIM = {
+  speed: 1,          /* multiplier. 0 makes everything instant. */
+  offline: false,    /* flip on to demonstrate the queue        */
+  queue: [],
+
+  reasons: {
+    MISSING: 'Some details are missing.',
+    TAKEN:   'Someone else set that stock aside a moment ago.',
+    SHORT:   'There is not enough stock to cover this.',
+    DROPPED: 'The connection dropped before this saved. Nothing was changed.',
+    OFFLINE: 'You are offline. This is saved on the phone and will send itself.',
+    BARRED:  'Your account cannot do this.',
+    STALE:   'This screen is out of date. Reload before saving.'
+  },
+
+  /* one action. Shows a spinner, waits, then either works or fails. */
+  go: function (o) {
+    o = o || {};
+    var b = o.button, wait = (o.wait == null ? 700 : o.wait) * SIM.speed;
+
+    if (SIM.offline && o.queueable) {
+      SIM.queue.push(o);
+      if (o.onQueued) o.onQueued(SIM.reasons.OFFLINE);
+      return;
+    }
+    if (b) U.working(b, true, o.busyWord);
+
+    setTimeout(function () {
+      if (b) U.working(b, false);
+      var bad = o.fail === true ? 'DROPPED'
+              : (typeof o.fail === 'string' ? o.fail
+              : (typeof o.fail === 'number' && Math.random() < o.fail ? 'DROPPED' : null));
+      if (bad) {
+        var why = SIM.reasons[bad] || SIM.reasons.DROPPED;
+        if (o.onFail) o.onFail(why, bad);
+        else U.say('That did not save', why, 'stop');
+      } else if (o.onDone) o.onDone();
+    }, wait);
+  },
+
+  /* check first, then act. Nothing is sent while something is missing. */
+  send: function (o) {
+    var wrong = (o.check ? o.check() : []) || [];
+    if (wrong.length) {
+      if (o.onWrong) o.onWrong(wrong);
+      A11Y.speak((wrong.length === 1 ? 'One thing to fix: ' : wrong.length + ' things to fix: ') + wrong.join('. '), true);
+      return false;
+    }
+    SIM.go(o);
+    return true;
+  },
+
+  flush: function () {
+    var n = SIM.queue.length;
+    SIM.queue.forEach(function (o) { if (o.onDone) o.onDone(); });
+    SIM.queue = [];
+    return n;
+  }
+};
+
+
+/* ==============================================================================
+   7 · A11Y
+   speak()  — says something out loud to a screen reader (4.1.3)
+   hold()   — keeps focus inside a dialog and gives it back afterwards (2.1.2)
+   audit()  — contrast, text sizes and touch sizes, measured not claimed
+   ============================================================================== */
+var A11Y = (function () {
+
+  function speak(words, loud) {
+    var n = document.getElementById(loud ? 'say-loud' : 'say-quiet');
+    if (!n) return;
+    n.textContent = '';
+    setTimeout(function () { n.textContent = words; }, 30);
+  }
+
+  var came = null, inside = null;
+  var CATCH = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function key(e) {
+    if (e.key !== 'Tab' || !inside) return;
+    var list = Array.prototype.filter.call(inside.querySelectorAll(CATCH), function (n) {
+      return n.offsetWidth || n.offsetHeight || n.getClientRects().length; });
+    if (!list.length) return;
+    var first = list[0], last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  function hold(node) {
+    came = document.activeElement; inside = node;
+    document.addEventListener('keydown', key, true);
+    var f = node.querySelector(CATCH);
+    if (f) f.focus(); else { node.setAttribute('tabindex', '-1'); node.focus(); }
+  }
+  function release() {
+    document.removeEventListener('keydown', key, true);
+    inside = null;
+    if (came && document.contains(came)) { try { came.focus(); } catch (e) {} }
+    came = null;
+  }
+
+  function bits(hex) {
+    hex = String(hex).trim().replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+  }
+  function light(hex) {
+    var c = bits(hex).map(function (v) { var s = v/255; return s <= 0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4); });
+    return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2];
+  }
+  function ratio(a, b) {
+    var la = light(a), lb = light(b), hi = Math.max(la,lb), lo = Math.min(la,lb);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  function val(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  var PAIRS = [
+    ['text','--text','--paper',4.5],   ['text','--text','--paper-2',4.5],
+    ['text','--text','--paper-3',4.5], ['text','--text','--bg',4.5],
+    ['text','--text-2','--paper',4.5], ['text','--text-2','--paper-2',4.5],
+    ['text','--text-2','--paper-3',4.5],['text','--text-2','--bg',4.5],
+    ['text','--text-3','--paper',4.5], ['text','--text-3','--paper-2',4.5],
+    ['text','--text-3','--paper-3',4.5],['text','--text-3','--bg',4.5],
+    ['text','--on-solid','--solid',4.5],
+    ['text','--good','--good-bg',4.5], ['text','--hold','--hold-bg',4.5],
+    ['text','--stop','--stop-bg',4.5], ['text','--note','--note-bg',4.5],
+    ['text','--stop','--paper',4.5],
+    ['edge','--edge','--paper',3.0],   ['edge','--edge','--paper-2',3.0],
+    ['edge','--edge','--paper-3',3.0], ['edge','--edge','--bg',3.0],
+    ['edge','--solid','--paper',3.0],
+    ['edge','--good','--paper',3.0],   ['edge','--hold','--paper',3.0],
+    ['edge','--stop','--paper',3.0],   ['edge','--note','--paper',3.0],
+    ['focus','--text','--paper',3.0],  ['focus','--text','--paper-3',3.0]
+  ];
+  var FIXED = [
+    ['brief message','#FFFFFF','#1C1F22',4.5],
+    ['brief message, wrong','#FFFFFF','#6B2E2E',4.5],
+    ['brief message, done','#FFFFFF','#27503F',4.5],
+    ['phone edge','#23262A','#E9EAEC',3.0]
+  ];
+
+  function audit(quiet) {
+    var rows = PAIRS.map(function (p) {
+      var fg = val(p[1]), bg = val(p[2]), r = ratio(fg, bg);
+      return { kind:p[0], front:p[1]+' '+fg, back:p[2]+' '+bg,
+               got:Math.round(r*100)/100, need:p[3], ok:r >= p[3] };
+    });
+    FIXED.forEach(function (p) {
+      var r = ratio(p[1], p[2]);
+      rows.push({ kind:p[0], front:p[1], back:p[2], got:Math.round(r*100)/100, need:p[3], ok:r >= p[3] });
+    });
+
+    /* text sizes and touch sizes, measured on what is actually drawn */
+    var tooSmall = [], tooTight = [];
+    var inHand = !!document.querySelector('.kit-in.hand');
+    var minText = inHand ? 13 : 12;
+    var minTap  = inHand ? 44 : 24;
+    var scope = document.querySelector('.kit-in') || document;
+
+    Array.prototype.forEach.call(scope.querySelectorAll('*'), function (n) {
+      if (!n.offsetWidth && !n.offsetHeight) return;
+      if (n.children.length === 0 && (n.textContent || '').trim()) {
+        var px = parseFloat(getComputedStyle(n).fontSize);
+        if (px && px < minText) tooSmall.push(n.tagName.toLowerCase() + ' ' + px.toFixed(1) + 'px');
+      }
+    });
+    Array.prototype.forEach.call(scope.querySelectorAll('button, a[href], input, select, textarea'), function (n) {
+      if (!n.offsetWidth && !n.offsetHeight) return;
+      if (n.offsetHeight < minTap || n.offsetWidth < minTap)
+        tooTight.push((n.className || n.tagName) + ' ' + n.offsetWidth + '×' + n.offsetHeight);
+    });
+
+    var bad = rows.filter(function (r) { return !r.ok; });
+    var out = { pairs: rows.length, contrastFails: bad.length, contrast: bad,
+                textTooSmall: tooSmall, touchTooSmall: tooTight,
+                minText: minText, minTap: minTap,
+                clean: !bad.length && !tooSmall.length && !tooTight.length };
+    if (!quiet) {
+      if (console.table) console.table(rows);
+      console.log(out.clean ? '%cAccess checks clean' : '%cAccess problems found',
+                  'font-weight:bold;color:' + (out.clean ? '#070' : '#b00'), out);
+    }
+    return out;
+  }
+
+  return { speak: speak, hold: hold, release: release, ratio: ratio, audit: audit };
+})();
+
+
+/* ==============================================================================
+   8 · MOTION — the agreed set
+   Movement and fading only. Nothing animates layout, so cheap phones stay
+   smooth. Everything switches off for "less movement". Checked by CHECK.motion().
+   ============================================================================== */
+var MOTION = {
+  set: [
+    { name:'tap',    ms:120, use:'button press, switch flipping',        moves:'scale' },
+    { name:'arrive', ms:200, use:'something appears that you did not ask for', moves:'fade + rise' },
+    { name:'panel',  ms:240, use:'a panel or sheet opening',             moves:'fade + rise' },
+    { name:'page',   ms:280, use:'moving between screens',               moves:'fade + slide' },
+    { name:'leave',  ms:160, use:'something closing',                    moves:'fade' }
+  ],
+  budget: 320,                 /* nothing may run longer than this */
+  allowed: ['opacity', 'transform'],
+  quiet: function () {
+    return document.documentElement.getAttribute('data-motion') === 'off' ||
+           window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  },
+  apply: function (on) { document.documentElement.setAttribute('data-motion', on ? 'on' : 'off'); }
+};
+
+
+/* ==============================================================================
+   9 · DEVICES — real Android sizes
+   ============================================================================== */
+var DEVICES = [
+  { id:'floor',  name:'Smallest supported', w:320,  h:640,  why:'The narrowest width we promise to work at' },
+  { id:'small',  name:'Small Android',      w:360,  h:640,  why:'Older and low-cost handsets' },
+  { id:'common', name:'Most common Android',w:360,  h:800,  why:'The single most likely phone in the field' },
+  { id:'big',    name:'Large Android',      w:384,  h:824,  why:'Bigger flagship' },
+  { id:'modern', name:'Modern Android',     w:412,  h:915,  why:'Current mid-range' },
+  { id:'huge',   name:'Largest phone',      w:448,  h:998,  why:'Biggest phone we expect' },
+  { id:'slate',  name:'Android tablet',     w:800,  h:1280, why:'Used on a warehouse floor', slate:true }
+];
+function deviceOf(id) {
+  for (var i = 0; i < DEVICES.length; i++) if (DEVICES[i].id === id) return DEVICES[i];
+  return DEVICES[4];
+}
+</script>
+
+<script>
+/* ==============================================================================
+   10 · U — components
+   ------------------------------------------------------------------------------
+   Icons are drawn here as plain shapes: nothing to download, works with no
+   signal, stays sharp at any size. Thick strokes and big forms on purpose —
+   they have to read on a scratched screen in bright sun.
+
+   Rule: an icon on its own is only allowed for close, back and menu, and each
+   still carries a spoken label. Anything that changes data gets a word.
+   ============================================================================== */
+var U = (function () {
+  var seq = 0;
+  function newId(p) { seq += 1; return (p || 'x') + '-' + seq; }
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k === 'html') n.innerHTML = v;
+      else if (k === 'data') Object.keys(v).forEach(function (d) { n.dataset[d] = v[d]; });
+      else if (k.slice(0, 2) === 'on' && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+      else n.setAttribute(k, v === true ? '' : v);
+    });
+    (kids || []).forEach(function (c) {
+      if (c == null || c === false) return;
+      n.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+    });
+    return n;
+  }
+  function empty(n) { while (n && n.firstChild) n.removeChild(n.firstChild); return n; }
+
+  /* ------------------------------------------------------------- icons */
+  var SHAPES = {
+    menu:     '<line x1="3" y1="6" x2="19" y2="6"/><line x1="3" y1="11" x2="19" y2="11"/><line x1="3" y1="16" x2="19" y2="16"/>',
+    back:     '<polyline points="13,4 6,11 13,18"/>',
+    forward:  '<polyline points="9,4 16,11 9,18"/>',
+    close:    '<line x1="5" y1="5" x2="17" y2="17"/><line x1="17" y1="5" x2="5" y2="17"/>',
+    down:     '<polyline points="4,8 11,15 18,8"/>',
+    up:       '<polyline points="4,14 11,7 18,14"/>',
+    plus:     '<line x1="11" y1="4" x2="11" y2="18"/><line x1="4" y1="11" x2="18" y2="11"/>',
+    minus:    '<line x1="4" y1="11" x2="18" y2="11"/>',
+    tick:     '<polyline points="4,12 9,17 18,5"/>',
+    warn:     '<path d="M11 3 L20 19 H2 Z"/><line x1="11" y1="9" x2="11" y2="13"/><line x1="11" y1="16" x2="11" y2="16"/>',
+    box:      '<path d="M3 7 L11 3 L19 7 V16 L11 20 L3 16 Z"/><line x1="3" y1="7" x2="11" y2="11"/><line x1="19" y1="7" x2="11" y2="11"/><line x1="11" y1="11" x2="11" y2="20"/>',
+    truck:    '<rect x="2" y="7" width="10" height="8"/><path d="M12 9 h4 l3 3 v3 h-7 Z"/><circle cx="6" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>',
+    home:     '<path d="M3 10 L11 3 L19 10 V19 H3 Z"/>',
+    list:     '<line x1="7" y1="6" x2="19" y2="6"/><line x1="7" y1="11" x2="19" y2="11"/><line x1="7" y1="16" x2="19" y2="16"/><line x1="3" y1="6" x2="3" y2="6"/><line x1="3" y1="11" x2="3" y2="11"/><line x1="3" y1="16" x2="3" y2="16"/>',
+    bell:     '<path d="M6 9 a5 5 0 0 1 10 0 v4 l2 3 H4 l2-3 Z"/><path d="M9 19 a2 2 0 0 0 4 0"/>',
+    person:   '<circle cx="11" cy="7" r="3.5"/><path d="M4 19 a7 7 0 0 1 14 0"/>',
+    pin:      '<path d="M11 20 s6-6.5 6-11 a6 6 0 0 0-12 0 c0 4.5 6 11 6 11 Z"/><circle cx="11" cy="9" r="2"/>',
+    clock:    '<circle cx="11" cy="11" r="8"/><polyline points="11,6 11,11 15,13"/>',
+    camera:   '<path d="M3 8 h3 l1.5-2 h7 L16 8 h3 v10 H3 Z"/><circle cx="11" cy="13" r="3"/>',
+    phone:    '<path d="M6 3 h4 l1.5 4 -2 2 a10 10 0 0 0 5 5 l2-2 4 1.5 v4 a2 2 0 0 1-2 2 A16 16 0 0 1 4 5 a2 2 0 0 1 2-2 Z"/>',
+    refresh:  '<path d="M18 11 a7 7 0 1 1-3-5.7"/><polyline points="18,4 18,10 12,10"/>',
+    save:     '<path d="M4 4 h10 l4 4 v10 H4 Z"/><polyline points="8,4 8,9 14,9"/><rect x="8" y="13" width="6" height="5"/>',
+    search:   '<circle cx="9.5" cy="9.5" r="6"/><line x1="14" y1="14" x2="19" y2="19"/>',
+    offline:  '<line x1="4" y1="4" x2="18" y2="18"/><path d="M6 13 a7 7 0 0 1 10-4"/><line x1="11" y1="17" x2="11" y2="17"/>'
+  };
+
+  /* size 20 by default; 24 minimum drawn size on a phone */
+  function ico(name, size) {
+    var s = size || 20;
+    var n = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    n.setAttribute('class', 'ico');
+    n.setAttribute('viewBox', '0 0 22 22');
+    n.setAttribute('width', s); n.setAttribute('height', s);
+    n.setAttribute('aria-hidden', 'true');
+    n.setAttribute('focusable', 'false');
+    n.innerHTML = SHAPES[name] || SHAPES.box;
+    return n;
+  }
+
+  /* ------------------------------------------------------------ buttons */
+  function btn(words, o) {
+    o = o || {};
+    var cls = 'btn' + (o.look ? ' ' + o.look : '') + (o.size ? ' ' + o.size : '') + (o.wide ? ' wide' : '');
+    var kids = [];
+    if (o.icon) kids.push(ico(o.icon, o.size === 'small' ? 16 : 18));
+    if (words) kids.push(el('span', { text: words }));
+    var b = el('button', {
+      class: cls, type: o.type || 'button', disabled: o.off || null,
+      title: o.tip || null, 'aria-label': o.spoken || null,
+      'aria-pressed': o.pressed == null ? null : String(o.pressed),
+      'aria-expanded': o.open == null ? null : String(o.open),
+      onclick: o.onTap || null
+    }, kids);
+    b._words = words; b._icon = o.icon || null; b._size = o.size || null;
+    return b;
+  }
+
+  /* spinner while something is happening. aria-busy tells a reader too. */
+  function working(b, on, word) {
+    if (!b) return;
+    if (on) {
+      b.disabled = true; b.setAttribute('aria-busy', 'true'); empty(b);
+      b.appendChild(el('span', { class: 'spin', 'aria-hidden': 'true' }));
+      b.appendChild(el('span', { text: word || 'Saving…' }));
+    } else {
+      b.disabled = false; b.removeAttribute('aria-busy'); empty(b);
+      if (b._icon) b.appendChild(ico(b._icon, b._size === 'small' ? 16 : 18));
+      if (b._words) b.appendChild(el('span', { text: b._words }));
+    }
+  }
+
+  /* --------------------------------------------------------- small parts */
+  function chip(words, tone, icon) {
+    return el('span', { class: 'chip' + (tone ? ' ' + tone : '') },
+      [ icon ? ico(icon, 13) : null, el('span', { text: words }) ]);
+  }
+
+  function box(o) {
+    o = o || {};
+    var kids = [];
+    if (o.title || o.tools) kids.push(el('div', { class: 'box__top' }, [
+      o.title ? el('h3', { text: o.title }) : null,
+      el('span', { class: 'fill' }),
+      o.tools ? el('div', { class: 'line', style: 'gap:8px;flex-wrap:wrap' }, o.tools) : null
+    ]));
+    if (o.body) kids.push(el('div', { class: 'box__mid' }, [].concat(o.body)));
+    if (o.foot) kids.push(el('div', { class: 'box__end' }, [].concat(o.foot)));
+    return el(o.as || 'div', { class: 'box' + (kids.length ? ' flush' : '') + (o.soft ? ' soft' : '') }, kids);
+  }
+
+  function figure(value, label) {
+    return el('div', { class: 'box figure' }, [
+      el('b', { text: String(value) }), el('span', { text: label })
+    ]);
+  }
+
+  function meter(pc, label) {
+    return el('div', { class: 'meter', role: 'progressbar',
+      'aria-valuenow': String(Math.round(pc)), 'aria-valuemin': '0', 'aria-valuemax': '100',
+      'aria-label': label || 'Progress' },
+      [ el('i', { style: 'transform:scaleX(' + (Math.max(0, Math.min(100, pc)) / 100) + ')' }) ]);
+  }
+
+  function steps(names, at) {
+    return el('ol', { class: 'steps' }, names.map(function (s, i) {
+      var done = i < at, here = i === at;
+      return el('li', { class: here ? 'now' : (done ? 'was' : ''), 'aria-current': here ? 'step' : null }, [
+        el('b', { text: ('0' + (i + 1)).slice(-2) }),
+        el('span', {}, [ s, done ? el('span', { class: 'vh', text: ' — done' }) : null ])
+      ]);
+    }));
+  }
+
+  /* -------------------------------------------------------------- asking */
+  /* label tied to the field, the problem tied by aria-describedby, the field
+     marked invalid. Nothing relies on colour to say something is wrong. */
+  function ask(o) {
+    var id = o.id || newId('ask');
+    var wrongId = id + '-wrong', tipId = id + '-tip';
+    var f = o.field;
+    if (f) {
+      f.id = id;
+      var says = [];
+      if (o.tip) says.push(tipId);
+      if (o.wrong) { says.push(wrongId); f.setAttribute('aria-invalid', 'true'); }
+      else f.removeAttribute('aria-invalid');
+      if (says.length) f.setAttribute('aria-describedby', says.join(' '));
+      if (o.needed) f.setAttribute('aria-required', 'true');
+    }
+    return el('div', { class: 'ask' + (o.wrong ? ' bad m-wrong' : '') }, [
+      o.label ? el('label', { class: 'ask__label', for: id }, [
+        o.label,
+        o.needed ? el('span', { 'aria-hidden': 'true', text: ' *' }) : null,
+        o.needed ? el('span', { class: 'vh', text: ' needed' }) : null
+      ]) : null,
+      f,
+      o.tip && !o.wrong ? el('p', { class: 'tip', id: tipId, text: o.tip }) : null,
+      o.wrong ? el('p', { class: 'wrong', id: wrongId }, [ ico('warn', 14), el('span', { text: o.wrong }) ]) : null
+    ]);
+  }
+
+  function line(o) {
+    o = o || {};
+    return el('input', { class: 'in', type: o.type || 'text', value: o.value == null ? '' : o.value,
+      placeholder: o.hint || null, inputmode: o.keys || null, autocomplete: o.auto || null,
+      maxlength: o.max || null, onInput: o.onType || null, onChange: o.onSet || null });
+  }
+
+  function choose(o) {
+    var s = el('select', { class: 'sel', onChange: o.onSet || null });
+    (o.options || []).forEach(function (op) {
+      s.appendChild(el('option', { value: op.value, selected: op.value === o.value ? true : null }, [op.label]));
+    });
+    return s;
+  }
+
+  function para(o) {
+    o = o || {};
+    return el('textarea', { class: 'note-in', placeholder: o.hint || null, rows: o.rows || null,
+      onInput: o.onType || null }, [o.value || '']);
+  }
+
+  /* how many. Buttons and typing both work — never a drag (2.5.7). */
+  function howMany(o) {
+    o = o || {};
+    var v = o.value || 0, low = o.low == null ? 0 : o.low, high = o.high == null ? 1e9 : o.high;
+    var f = el('input', { type: 'text', inputmode: 'numeric', value: String(v),
+      'aria-label': o.spoken || 'How many' });
+    var less, more;
+    function set(n, tell) {
+      n = Math.max(low, Math.min(high, isNaN(n) ? low : n));
+      v = n; f.value = String(n);
+      if (less) less.disabled = v <= low;
+      if (more) more.disabled = v >= high;
+      if (tell && o.onSet) o.onSet(n);
+    }
+    f.addEventListener('input', function () { set(parseInt(f.value.replace(/[^\d]/g, ''), 10), true); });
+    less = el('button', { type: 'button', 'aria-label': 'One fewer', onclick: function () { set(v - (o.step || 1), true); } });
+    less.appendChild(ico('minus', 16));
+    more = el('button', { type: 'button', 'aria-label': 'One more', onclick: function () { set(v + (o.step || 1), true); } });
+    more.appendChild(ico('plus', 16));
+    var w = el('div', { class: 'num-set' }, [less, f, more]);
+    set(v, false);
+    w.read = function () { return v; };
+    return w;
+  }
+
+  function tick(o) {
+    var id = newId('tick');
+    return el('div', { class: 'tick' }, [
+      el('input', { type: 'checkbox', id: id, checked: o.on ? true : null, onChange: o.onSet || null }),
+      el('label', { for: id }, [ el('span', {}, [o.label]), o.tip ? el('small', { text: o.tip }) : null ])
+    ]);
+  }
+
+  /* --------------------------------------------------------------- lists */
+  /* data-label on every cell is what lets rows stack on a narrow screen
+     instead of scrolling sideways */
+  function grid(o) {
+    var rows = o.rows || [];
+    if (!rows.length && o.none) return none(o.none);
+    return el('div', { class: 'grid-wrap' }, [
+      el('table', { class: 'grid' }, [
+        el('caption', { class: 'vh', text: o.about || 'List' }),
+        el('thead', {}, [ el('tr', {}, (o.cols || []).map(function (c) {
+          return el('th', { scope: 'col', class: c.figs ? 'figs-col' : null, text: c.label }); })) ]),
+        el('tbody', {}, rows.map(function (r, i) {
+          return el('tr', {
+            class: (o.onPick ? 'tapable' : '') + (o.chosen && o.chosen(r, i) ? ' on' : ''),
+            tabindex: o.onPick ? '0' : null,
+            onclick: o.onPick ? function () { o.onPick(r, i); } : null,
+            onKeydown: o.onPick ? function (e) {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); o.onPick(r, i); } } : null
+          }, (o.cols || []).map(function (c) {
+            var v = c.cell(r, i);
+            return el('td', { class: c.figs ? 'figs-col' : null, data: { label: c.label } },
+              [ typeof v === 'string' || typeof v === 'number' ? String(v) : v ]);
+          }));
+        }))
+      ])
+    ]);
+  }
+
+  /* ------------------------------------------------ telling people things */
+  function say(headline, detail, tone, doThis) {
+    return el('div', { class: 'say ' + (tone || 'note'), role: tone === 'stop' ? 'alert' : null }, [
+      ico(tone === 'stop' ? 'warn' : (tone === 'good' ? 'tick' : 'warn'), 18),
+      el('div', { class: 'fill' }, [
+        el('b', { text: headline }), detail ? el('p', { text: detail }) : null ]),
+      doThis ? el('div', { class: 'say__do' }, [].concat(doThis)) : null
+    ]);
+  }
+
+  function none(o) {
+    if (typeof o === 'string') o = { headline: o };
+    return el('div', { class: 'none' }, [
+      el('b', { text: o.headline }), o.detail ? el('p', { text: o.detail }) : null, o.doThis || null ]);
+  }
+
+  function later(name, why) {
+    return el('div', { class: 'later' }, [
+      el('b', { text: name }),
+      el('p', { text: why || 'Nothing has been designed here yet. Give me this step of the journey and the working screen gets built.' })
+    ]);
+  }
+
+  function bone(h, w) { return el('div', { class: 'bone', 'aria-hidden': 'true',
+    style: 'height:' + (h || 12) + 'px' + (w ? ';width:' + w : '') }); }
+
+  /* brief message, bottom corner. Always spoken as well as shown. */
+  function brief(headline, detail, tone, ms) {
+    var host = document.getElementById('notes');
+    A11Y.speak(headline + (detail ? '. ' + detail : ''), tone === 'stop');
+    if (!host) return;
+    var card = el('div', { class: 'note-card' + (tone ? ' ' + tone : '') }, [
+      el('div', { class: 'fill' }, [ el('b', { text: headline }), detail ? el('span', { text: detail }) : null ]),
+      el('button', { class: 'note-card__x', 'aria-label': 'Dismiss', onclick: function () {
+        if (card.parentNode) card.parentNode.removeChild(card); } }, [ ico('close', 15) ])
+    ]);
+    host.appendChild(card);
+    setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); }, ms || 4800);
+    return card;
+  }
+
+  /* ------------------------------------------------------ asking to decide */
+  var shown = null;
+  function shut() {
+    if (shown && shown.parentNode) shown.parentNode.removeChild(shown);
+    if (shown) A11Y.release();
+    shown = null;
+    document.removeEventListener('keydown', escape, true);
+  }
+  function escape(e) { if (e.key === 'Escape') { e.stopPropagation(); shut(); } }
+
+  function panel(o) {
+    shut();
+    var titleId = newId('pt');
+    var fromBottom = o.up != null ? o.up : (Shell.viewNow() === 'hand');
+    var body = el('div', { class: 'panel', role: 'dialog', 'aria-modal': 'true',
+      'aria-labelledby': o.title ? titleId : null,
+      'aria-label': o.title ? null : (o.spoken || 'Dialog') }, [
+      o.title ? el('div', { class: 'panel__top' }, [ el('h2', { id: titleId, text: o.title }) ]) : null,
+      el('div', { class: 'panel__mid' }, [].concat(o.body || [])),
+      o.doThis ? el('div', { class: 'panel__end' }, [].concat(o.doThis)) : null
+    ]);
+    var veil = el('div', { class: 'veil' + (fromBottom ? ' up' : ''),
+      onclick: function (e) { if (e.target === veil && o.sticky !== true) shut(); } }, [body]);
+    var host = (fromBottom && document.querySelector('.frame.hand .kit')) || document.body;
+    host.appendChild(veil);
+    shown = veil;
+    document.addEventListener('keydown', escape, true);
+    A11Y.hold(body);
+    return { shut: shut, body: body };
+  }
+
+  function confirm(o) {
+    return panel({
+      title: o.title, up: o.up,
+      body: o.detail ? el('p', { style: 'margin:0', text: o.detail }) : null,
+      doThis: [
+        btn(o.no || 'Cancel', { onTap: function () { shut(); if (o.onNo) o.onNo(); } }),
+        btn(o.yes || 'Confirm', { look: o.risky ? 'warn-btn' : 'go',
+          onTap: function () { shut(); if (o.onYes) o.onYes(); } })
+      ]
+    });
+  }
+
+  return { el:el, empty:empty, newId:newId, ico:ico, SHAPES:SHAPES,
+    btn:btn, working:working, chip:chip, box:box, figure:figure, meter:meter, steps:steps,
+    ask:ask, line:line, choose:choose, para:para, howMany:howMany, tick:tick,
+    grid:grid, say:say, none:none, later:later, bone:bone, brief:brief,
+    panel:panel, confirm:confirm, shut:shut };
+})();
+
+
+/* ==============================================================================
+   11 · PERSONAS — who is using it
+   The four warehouse jobs are the SAME portal seen four ways: same warehouse,
+   different list down the side, different things they may change.
+   ============================================================================== */
+var PEOPLE_VIEWS = [
+  { id:'admin', person:'P-ADMIN', tag:'PA', sees:'Everything, everywhere', view:'desk', first:'overview',
+    pages:[['overview','Overview'],['emergencies','Emergencies'],['orgs','Organisations'],
+           ['stores','{Stores}'],['access','People and access'],['fleet','Drivers and vehicles'],
+           ['history','What happened'],['alerts','Alerts']] },
+
+  { id:'relief-lead', person:'P-LEAD', tag:'RL', sees:'All of our sites', view:'desk', first:'lead-overview',
+    pages:[['lead-overview','Overview'],['sites','{Sites}'],['ask','Ask for supplies'],
+           ['requests','Requests'],['track','Track deliveries'],['reports','Reports'],['alerts','Alerts']] },
+
+  { id:'site-lead', person:'P-SITE', tag:'SL', sees:'One site only', view:'desk', first:'site-overview',
+    pages:[['site-overview','Overview'],['site-ask','Ask for supplies'],['coming','Coming here'],
+           ['check-arrived','Check what arrived'],['site-stock','Stock here'],['alerts','Alerts']] },
+
+  { id:'store-lead', person:'P-STORE', tag:'WL', sees:'One warehouse', view:'desk', first:'store-overview',
+    pages:[['store-overview','Overview'],['new-requests','New requests'],['stock','Stock on hand'],
+           ['kits','Kits'],['set-aside','Set stock aside'],['send-out','Send out'],
+           ['fleet','Drivers and vehicles'],['restock','Restocking'],['alerts','Alerts']] },
+
+  { id:'stock-keeper', person:'P-STOCK', tag:'SK', sees:'Stock in one warehouse', view:'desk', first:'stock',
+    pages:[['store-overview','Overview'],['stock','Stock on hand'],['book-in','Book in stock'],
+           ['kits','Kits'],['alerts','Alerts']] },
+
+  { id:'sender', person:'P-SEND', tag:'SP', sees:'Send-outs from one warehouse', view:'desk', first:'send-out',
+    pages:[['store-overview','Overview'],['new-requests','New requests'],['set-aside','Set stock aside'],
+           ['send-out','Send out'],['fleet','Drivers and vehicles'],['alerts','Alerts']] },
+
+  { id:'buyer', person:'P-BUY', tag:'BY', sees:'Restocking one warehouse', view:'desk', first:'restock',
+    pages:[['store-overview','Overview'],['restock','Restocking'],['stock','Stock on hand'],['alerts','Alerts']] },
+
+  { id:'driver', person:'P-DRIVE', tag:'DR', sees:'Only my own jobs', view:'hand', first:'today',
+    pages:[['today','Today'],['this-job','This job'],['directions','Directions'],
+           ['confirm-pickup','Confirm pickup'],['on-the-way','On the way'],['arrived','Arrived'],
+           ['confirm-handover','Confirm handover'],['problem','Report a problem'],
+           ['job-done','Job done'],['alerts','Alerts'],['profile','Profile']],
+    tabs:[['today','Today','home'],['on-the-way','Route','pin'],['alerts','Alerts','bell'],['profile','Profile','person']] }
+];
+
+var VIEW_GROUPS = [
+  { label:'Global Nomad',        ids:['admin'] },
+  { label:'Relief organisation', ids:['relief-lead','site-lead'] },
+  { label:'Warehouse — one portal, four jobs', ids:['store-lead','stock-keeper','sender','buyer'] },
+  { label:'On the road',         ids:['driver'] }
+];
+
+function viewOf(id) {
+  for (var i = 0; i < PEOPLE_VIEWS.length; i++) if (PEOPLE_VIEWS[i].id === id) return PEOPLE_VIEWS[i];
+  return null;
+}
+</script>
+
+<script>
+/* ==============================================================================
+   12 · SCREENS
+   ------------------------------------------------------------------------------
+   WORD TOKENS
+     Any label may contain {Site} or {site}. Capitalised gives the term with a
+     capital, lower-case gives it mid-sentence. So "Stock at this {site}" reads
+     "Stock at this relief camp" in the Emirates and "…this shelter" in the
+     States, with no branching in the screen.
+
+   SCREEN CONTRACT — every draw() gets one object:
+     me      the view being used (from PEOPLE_VIEWS)
+     person  the person record for this place
+     place   the place profile (REGIONS.AE, REGIONS.US, …)
+     view    'desk' | 'hand'
+     page    which page id is showing
+     go(id)  move to another page for this same person
+     again() redraw without moving
+   A screen must never name a place or read REGIONS directly. Read `place` for
+   formats, read records by id, read nouns through {tokens} or T().
+   ============================================================================== */
+function words(str) {
+  return String(str).replace(/\{([A-Za-z]+)\}/g, function (all, key) {
+    var low = key.charAt(0) === key.charAt(0).toLowerCase();
+    return low ? t(key) : T(key.charAt(0).toLowerCase() + key.slice(1));
+  });
+}
+
+var SCREENS = {};
+function addScreen(id, name, draw) { SCREENS[id] = { id: id, name: name, draw: draw }; }
+function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
+
+/* Not yet designed. Kept honest: says so plainly, and stays navigable. */
+[ ['overview','Overview'], ['emergencies','Emergencies'], ['orgs','Organisations'],
+  ['stores','{Stores}'], ['access','People and access'], ['fleet','Drivers and vehicles'],
+  ['history','What happened'],
+
+  ['lead-overview','Overview'], ['sites','{Sites}'], ['ask','Ask for supplies'],
+  ['requests','Requests'], ['track','Track deliveries'], ['reports','Reports'],
+
+  ['site-overview','Overview'], ['site-ask','Ask for supplies'], ['coming','Coming here'],
+  ['check-arrived','Check what arrived'], ['site-stock','Stock at this {site}'],
+
+  ['store-overview','Overview'], ['new-requests','New requests'], ['stock','Stock on hand'],
+  ['book-in','Book in stock'], ['kits','{Kits}'], ['set-aside','Set stock aside'],
+  ['send-out','Send out'], ['restock','Restocking'],
+
+  ['today','Today'], ['this-job','This job'], ['directions','Directions'],
+  ['confirm-pickup','Confirm pickup'], ['on-the-way','On the way'], ['arrived','Arrived'],
+  ['confirm-handover','Confirm handover'], ['problem','Report a problem'],
+  ['job-done','Job done'], ['profile','Profile']
+].forEach(function (s) {
+  addScreen(s[0], s[1], function (c) {
+    return U.el('div', { class: 'm-page' }, [
+      U.el('h1', { class: 't1', text: words(s[1]) }),
+      U.el('p', { class: 'lede', text: JOBS[c.person.job] + ' · ' + c.me.sees + ' · ' + c.place.short }),
+      U.later(words(s[1]))
+    ]);
+  });
+});
+
+/* Built now — it needs no journey, and it shows that messages between people
+   really do arrive. */
+addScreen('alerts', 'Alerts', function (c) {
+  var mine = Store.many('alerts', function (a) { return a.job === c.person.job; });
+  var head = [
+    U.el('h1', { class: 't1', text: 'Alerts' }),
+    U.el('p', { class: 'lede', text: mine.length
+      ? mine.length + (mine.length === 1 ? ' message for you' : ' messages for you')
+      : 'Nothing yet. Messages land here when someone else does something that affects you.' })
+  ];
+  if (!mine.length) {
+    return U.el('div', { class: 'm-page' }, head.concat([
+      U.none({ headline: 'No messages', detail: 'Do something as another person, then come back here.' })
+    ]));
+  }
+  var unseen = mine.filter(function (a) { return !a.seen; }).length;
+  return U.el('div', { class: 'm-page' }, head.concat([
+    unseen ? U.el('div', { class: 'line wrap', style: 'margin-bottom:16px' }, [
+      U.chip(unseen + ' not yet read', 'note'),
+      U.el('span', { class: 'fill' }),
+      U.btn('Mark all read', { size: 'small', icon: 'tick', onTap: function () {
+        Store.change(function () { mine.forEach(function (a) { a.seen = true; }); });
+        U.brief('All marked read');
+      } })
+    ]) : null,
+    U.el('ul', { class: 'col', style: 'gap:8px;list-style:none;padding:0;margin:0' }, mine.map(function (a) {
+      return U.el('li', { class: 'box' + (a.seen ? ' soft' : '') }, [
+        U.el('div', { class: 'line wrap', style: 'gap:8px' }, [
+          U.chip(a.how === 'PUSH' ? 'On the phone' : 'In the app', a.how === 'PUSH' ? 'solid' : null,
+                 a.how === 'PUSH' ? 'bell' : null),
+          U.el('b', { class: 'fill', style: 'font-size:13.5px;font-weight:650', text: a.headline }),
+          U.el('span', { style: 'font-size:11.5px;color:var(--text-3);white-space:nowrap', text: FMT.ago(a.at) })
+        ]),
+        a.detail ? U.el('p', { style: 'margin:6px 0 0;font-size:13px;color:var(--text-2)', text: a.detail }) : null
+      ]);
+    }))
+  ]));
+});
+
+
+/* ==============================================================================
+   13 · SHELL
+   ------------------------------------------------------------------------------
+   One control bar: place, person, view, phone model, words, movement, and a
+   way to hide the whole thing. Everything below the bar is the product.
+
+   Address:  #/<view>/<person>/<page>     e.g. #/hand/driver/today
+   Keyboard: [  hide or show the bar   ·   Esc  close a dialog
+   ============================================================================== */
+var Shell = (function () {
+  var el = U.el, empty = U.empty;
+  var PREFS = 'gn-ux-prefs-v1';
+
+  var s = { who:'site-lead', page:null, view:'desk', phone:'modern',
+            turned:'upright', shut:false, listOpen:false };
+  var root, zoomTag = null;
+
+  function readPrefs() {
+    try {
+      var p = JSON.parse(localStorage.getItem(PREFS) || '{}');
+      ['view','phone','turned','shut','who'].forEach(function (k) { if (p[k] != null) s[k] = p[k]; });
+    } catch (e) {}
+  }
+  function savePrefs() {
+    try { localStorage.setItem(PREFS, JSON.stringify({ view:s.view, phone:s.phone,
+      turned:s.turned, shut:s.shut, who:s.who })); } catch (e) {}
+  }
+
+  function hasPage(v, id) { return v.pages.some(function (p) { return p[0] === id; }); }
+
+  function readAddress() {
+    var parts = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean);
+    if (parts[0] === 'desk' || parts[0] === 'hand') s.view = parts[0];
+    if (viewOf(parts[1])) s.who = parts[1];
+    var v = viewOf(s.who);
+    s.page = (parts[2] && SCREENS[parts[2]] && hasPage(v, parts[2])) ? parts[2] : v.first;
+  }
+  function writeAddress() {
+    var want = '#/' + s.view + '/' + s.who + '/' + s.page;
+    if (location.hash !== want) history.replaceState(null, '', want);
+  }
+
+  function go(whoId, pageId, view) {
+    var swapped = whoId && whoId !== s.who;
+    if (swapped) {
+      s.who = whoId;
+      s.view = view || viewOf(whoId).view;
+      pageId = pageId || viewOf(whoId).first;
+    }
+    if (view) s.view = view;
+    var v = viewOf(s.who);
+    s.page = (pageId && SCREENS[pageId] && hasPage(v, pageId)) ? pageId : v.first;
+    s.listOpen = false;
+    U.shut();
+    savePrefs(); writeAddress(); draw(true);
+    var p = Store.one('people', v.person);
+    A11Y.speak(swapped ? 'Now using it as ' + p.name + ', ' + JOBS[p.job] + '. ' + screenName(s.page)
+                       : screenName(s.page));
+  }
+
+  function setView(v) {
+    if (s.view === v) return;
+    s.view = v; savePrefs(); writeAddress(); draw(true);
+    A11Y.speak(v === 'hand' ? 'Phone view, ' + deviceOf(s.phone).name : 'Desktop view');
+  }
+
+  function setPlace(id) {
+    if (Store.s.place === id) return;
+    var w = Store.s;
+    var busy = w.requests.length + w.deliveries.length + w.handovers.length + w.orders.length;
+    function swap() {
+      Store.setPlace(id);
+      U.brief('Now showing ' + REGIONS[id].name, 'Warehouses, sites, catalogue, measures and dates all changed.');
+      A11Y.speak('Switched to ' + REGIONS[id].name);
+      draw(true);
+    }
+    if (busy) {
+      U.confirm({
+        title: 'Switch to ' + REGIONS[id].name + '?',
+        detail: 'Anything you started in ' + Store.place.short + ' will be cleared. The two places have different warehouses, sites and catalogue, so records cannot move across.',
+        yes: 'Switch', risky: true, onYes: swap
+      });
+    } else swap();
+  }
+
+  /* ------------------------------------------------------------ bar parts */
+  function placeGroup() {
+    var lid = U.newId('lbl-place');
+    return el('div', { class: 'grp' }, [
+      el('span', { class: 'cap', id: lid, text: 'Place' }),
+      el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid },
+        Object.keys(REGIONS).map(function (k) {
+          return el('button', { 'aria-pressed': String(Store.s.place === k), title: REGIONS[k].name,
+            text: REGIONS[k].short, onclick: function () { setPlace(k); } });
+        }))
+    ]);
+  }
+
+  function whoGroup() {
+    var v = viewOf(s.who), p = Store.one('people', v.person);
+    var trigger = el('button', {
+      class: 'who__btn', 'aria-haspopup': 'true', 'aria-expanded': String(s.listOpen),
+      onclick: function (e) { e.stopPropagation(); s.listOpen = !s.listOpen; draw(); }
+    }, [
+      el('span', { class: 'tag2', 'aria-hidden': 'true', text: v.tag }),
+      el('span', { class: 'who__name' }, [
+        el('b', { text: p.name }),
+        el('span', { text: JOBS[p.job] + ' · ' + Store.one('orgs', p.org).name })
+      ]),
+      U.ico('down', 14)
+    ]);
+
+    var kids = [];
+    VIEW_GROUPS.forEach(function (g) {
+      kids.push(el('div', { class: 'who__group cap', text: g.label }));
+      g.ids.forEach(function (id) {
+        var q = viewOf(id), qp = Store.one('people', q.person);
+        var unseen = Store.many('alerts', function (a) { return a.job === qp.job && !a.seen; }).length;
+        kids.push(el('button', {
+          class: 'who__opt', 'aria-current': String(id === s.who),
+          onclick: function () { go(id); }
+        }, [
+          el('span', { class: 'tag2', 'aria-hidden': 'true', text: q.tag }),
+          el('span', {}, [ el('b', { text: qp.name }), el('small', { text: JOBS[qp.job] + ' · ' + q.sees }) ]),
+          el('span', { class: 'line', style: 'gap:5px' }, [
+            unseen ? U.chip(unseen + ' new', 'note') : null,
+            U.chip(q.view === 'hand' ? 'Phone' : 'Desktop')
+          ])
+        ]));
+      });
+    });
+    kids.push(el('div', { class: 'who__foot' }, [
+      el('p', { text: 'Made-up data. Saved in this browser only.' }),
+      U.btn('Clear and start over', { size: 'small', icon: 'refresh', onTap: function () {
+        s.listOpen = false; draw();
+        U.confirm({ title: 'Clear everything and start over?',
+          detail: 'Every request, send-out and handover made in this session goes. The starting data for ' + Store.place.short + ' comes back.',
+          yes: 'Clear it', risky: true, onYes: function () { Store.wipe(); U.brief('Started over'); } });
+      } })
+    ]));
+
+    return el('div', { class: 'grp' }, [
+      el('span', { class: 'cap', text: 'Using it as' }),
+      el('div', { class: 'who' }, [ trigger, el('div', { class: 'who__list', hidden: !s.listOpen }, kids) ])
+    ]);
+  }
+
+  function viewGroup() {
+    var lid = U.newId('lbl-view');
+    return el('div', { class: 'grp' }, [
+      el('span', { class: 'cap', id: lid, text: 'View' }),
+      el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, [
+        el('button', { 'aria-pressed': String(s.view === 'desk'), text: 'Desktop', onclick: function () { setView('desk'); } }),
+        el('button', { 'aria-pressed': String(s.view === 'hand'), text: 'Phone',   onclick: function () { setView('hand'); } })
+      ])
+    ]);
+  }
+
+  function phoneGroup(inSheet) {
+    if (s.view !== 'hand') return null;
+    var d = el('select', { class: 'drop', 'aria-label': 'Which phone',
+      onchange: function (e) { s.phone = e.target.value; savePrefs(); draw(true);
+        A11Y.speak(deviceOf(s.phone).name); } });
+    DEVICES.forEach(function (x) {
+      d.appendChild(el('option', { value: x.id, selected: x.id === s.phone ? true : null },
+        [x.name + ' — ' + x.w + ' × ' + x.h]));
+    });
+    var sideways = s.turned === 'sideways';
+    var rot = el('button', { class: 'icon-btn', 'aria-pressed': String(sideways),
+      'aria-label': 'Turn the phone sideways', title: sideways ? 'Stand it upright' : 'Turn it sideways',
+      onclick: function () { s.turned = sideways ? 'upright' : 'sideways'; savePrefs(); draw(true);
+        A11Y.speak(sideways ? 'Upright' : 'Sideways'); } });
+    rot.appendChild(U.ico('refresh', 16));
+    return el('div', { class: 'grp' + (inSheet ? '' : ' extra') }, [
+      el('span', { class: 'cap', text: 'Phone' }), d, rot ]);
+  }
+
+  function speechGroup(inSheet) {
+    var list = Store.place.speech;
+    if (list.length < 2) return null;
+    var lid = U.newId('lbl-speech');
+    return el('div', { class: 'grp' + (inSheet ? '' : ' extra') }, [
+      el('span', { class: 'cap', id: lid, text: 'Words' }),
+      el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, list.map(function (l) {
+        return el('button', { 'aria-pressed': String(Store.s.speech === l.code), lang: l.code,
+          title: l.name + (l.flow === 'rtl' ? ' — reads right to left' : ''),
+          text: l.code === 'en' ? 'English' : l.name,
+          onclick: function () { Store.setSpeech(l.code); A11Y.speak(l.name); draw(true); } });
+      }))
+    ]);
+  }
+
+  function motionGroup(inSheet) {
+    var lid = U.newId('lbl-motion');
+    var on = Store.s.motion !== 'off';
+    return el('div', { class: 'grp' + (inSheet ? '' : ' extra') }, [
+      el('span', { class: 'cap', id: lid, text: 'Movement' }),
+      el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, [
+        el('button', { 'aria-pressed': String(on), text: 'Normal',
+          onclick: function () { Store.setMotion('on'); MOTION.apply(true); A11Y.speak('Normal movement'); draw(); } }),
+        el('button', { 'aria-pressed': String(!on), text: 'Less',
+          onclick: function () { Store.setMotion('off'); MOTION.apply(false); A11Y.speak('Less movement'); draw(); } })
+      ])
+    ]);
+  }
+
+  function bar() {
+    var v = viewOf(s.who), p = Store.one('people', v.person);
+
+    var reopen = el('button', { class: 'bar__open', 'aria-expanded': 'false', title: 'Show the controls  [',
+      onclick: function () { s.shut = false; savePrefs(); draw(); A11Y.speak('Controls shown'); } }, [
+      el('span', { class: 'tag2', 'aria-hidden': 'true', text: v.tag }),
+      el('span', { text: p.name.split(' ')[0] }),
+      el('em', { text: Store.place.short + ' · ' + (s.view === 'hand' ? 'Phone' : 'Desktop') }),
+      el('span', { class: 'vh', text: '— show the demo controls' })
+    ]);
+
+    var more = U.btn('Controls', { size: 'small', icon: 'menu', onTap: openSheet });
+    more.classList.add('bar__more');
+
+    var hide = el('button', { class: 'icon-btn', title: 'Hide the controls  [', 'aria-expanded': 'true',
+      'aria-label': 'Hide the demo controls',
+      onclick: function () { s.shut = true; savePrefs(); draw(); A11Y.speak('Controls hidden'); } });
+    hide.appendChild(U.ico('up', 16));
+
+    var row = el('div', { class: 'bar__row', role: 'toolbar', 'aria-label': 'Demo controls' }, [
+      placeGroup(), whoGroup(), viewGroup(), phoneGroup(false), speechGroup(false), motionGroup(false),
+      el('span', { class: 'fill' }), more, hide
+    ]);
+
+    return el('header', { class: 'bar', role: 'banner', data: { shut: String(s.shut) } }, [reopen, row]);
+  }
+
+  function openSheet() {
+    U.panel({
+      up: false, title: 'Demo controls',
+      body: el('div', { class: 'sheet-body' }, [
+        placeGroup(), viewGroup(), phoneGroup(true), speechGroup(true), motionGroup(true) ]),
+      doThis: [ U.btn('Done', { look: 'go', onTap: U.shut }) ]
+    });
+  }
+
+  /* ---------------------------------------------------------------- app */
+  function context() {
+    var v = viewOf(s.who);
+    return {
+      me: v, person: Store.one('people', v.person), place: Store.place,
+      view: s.view, page: s.page,
+      go: function (id) { go(null, id); },
+      goAs: go,
+      again: function () { draw(); }
+    };
+  }
+
+  function pageNode(c) {
+    var sc = SCREENS[s.page];
+    if (!sc) return U.none({ headline: 'Page not found', detail: 'Nothing is registered as “' + s.page + '”.' });
+    try { return sc.draw(c); }
+    catch (e) {
+      console.error('[page ' + s.page + ']', e);
+      return U.say('This page could not be drawn', String((e && e.message) || e), 'stop');
+    }
+  }
+
+  function unseenFor(c) {
+    return Store.many('alerts', function (a) { return a.job === c.person.job && !a.seen; }).length;
+  }
+
+  function pageLinks(c, onPick) {
+    var v = c.me, unseen = unseenFor(c);
+    return v.pages.map(function (pg) {
+      return el('a', {
+        class: 'side__item', href: '#/' + s.view + '/' + v.id + '/' + pg[0],
+        'aria-current': pg[0] === s.page ? 'page' : null,
+        onclick: function (e) { e.preventDefault(); (onPick || function (id) { go(null, id); })(pg[0]); }
+      }, [
+        el('span', { text: words(pg[1]) }),
+        (pg[0] === 'alerts' && unseen)
+          ? el('span', { class: 'count' }, [ String(unseen), el('span', { class: 'vh', text: ' not read' }) ]) : null
+      ]);
+    });
+  }
+
+  function flow() {
+    var list = Store.place.speech;
+    for (var i = 0; i < list.length; i++) if (list[i].code === Store.s.speech) return list[i];
+    return list[0];
+  }
+
+  function deskApp(c) {
+    var v = c.me;
+    var side = el('nav', { class: 'side', 'aria-label': 'Pages' }, [
+      el('div', { class: 'side__me' }, [
+        el('b', { text: Store.one('orgs', c.person.org).name }),
+        el('span', { text: c.person.name + ' · ' + JOBS[c.person.job] }),
+        el('span', { class: 'side__sees' }, [ 'You can see: ', el('b', { text: v.sees }) ])
+      ]),
+      el('div', { class: 'side__list' }, pageLinks(c))
+    ]);
+
+    var openList = U.btn('', { size: 'small', look: 'quiet', icon: 'menu', spoken: 'Pages', tip: 'Pages',
+      onTap: function () {
+        U.panel({ title: 'Pages',
+          body: el('div', { class: 'side__list' }, pageLinks(c, function (id) { U.shut(); go(null, id); })),
+          doThis: [ U.btn('Close', { onTap: U.shut }) ] });
+      } });
+    openList.classList.add('side-open');
+
+    var main = el('main', { class: 'page-wrap', 'aria-label': screenName(s.page) }, [
+      el('div', { class: 'page-top' }, [
+        openList,
+        el('span', { class: 'trail' }, [ Store.one('orgs', c.person.org).name + ' / ',
+          el('b', { text: screenName(s.page) }) ])
+      ]),
+      el('div', { class: 'page' }, [ pageNode(c) ])
+    ]);
+
+    var f = flow();
+    return el('div', { class: 'kit-in', dir: f.flow, lang: f.code }, [ side, main ]);
+  }
+
+  function handApp(c) {
+    var v = c.me, unseen = unseenFor(c);
+    var tabs = v.tabs || v.pages.slice(0, 4).map(function (p) { return [p[0], p[1], 'list']; });
+    var onTab = tabs.some(function (x) { return x[0] === s.page; });
+
+    var top = el('div', { class: 'm-top' }, [
+      onTab ? null : U.btn('', { size: 'small', look: 'quiet', icon: 'back', spoken: 'Back',
+        onTap: function () { go(null, v.first); } }),
+      el('b', { class: 'fill', text: screenName(s.page) }),
+      U.btn('', { size: 'small', look: 'quiet', icon: 'menu', spoken: 'All pages', onTap: function () {
+        U.panel({ up: true, title: 'All pages',
+          body: el('div', { class: 'side__list' }, pageLinks(c, function (id) { U.shut(); go(null, id); })),
+          doThis: [ U.btn('Close', { onTap: U.shut }) ] });
+      } })
+    ]);
+
+    var tabbar = el('nav', { class: 'm-tabs', 'aria-label': 'Main' }, tabs.map(function (x) {
+      var b = el('button', { class: 'm-tab', 'aria-current': x[0] === s.page ? 'page' : null,
+        onclick: function () { go(null, x[0]); } });
+      b.appendChild(U.ico(x[2] || 'list', 22));
+      b.appendChild(document.createTextNode(words(x[1])));
+      if (x[0] === 'alerts' && unseen) b.appendChild(
+        el('span', { class: 'count' }, [ String(unseen), el('span', { class: 'vh', text: ' not read' }) ]));
+      return b;
+    }));
+
+    var f = flow();
+    return el('div', { class: 'kit-in hand', dir: f.flow, lang: f.code }, [
+      top, el('main', { class: 'm-body' }, [ pageNode(c) ]), tabbar ]);
+  }
+
+  /* ------------------------------------------------------- the frames */
+  function frame(c) {
+    if (s.view === 'desk') {
+      return el('div', { class: 'frame desk' }, [
+        el('div', { class: 'frame__cap' }, [
+          el('span', { class: 'cap', text: 'Desktop' }),
+          U.chip(JOBS[c.person.job]), U.chip(c.me.sees), U.chip(Store.place.short)
+        ]),
+        el('div', { class: 'kit' }, [ deskApp(c) ])
+      ]);
+    }
+
+    var d = deviceOf(s.phone);
+    var sideways = s.turned === 'sideways';
+    var w = sideways ? d.h : d.w, h = sideways ? d.w : d.h;
+    var plain = window.innerWidth < 560;
+    var edge = plain ? 2 : (d.slate ? 24 : 18);
+
+    zoomTag = el('span', { class: 'cap', text: '' });
+
+    var kit = el('div', { class: 'kit', style: 'width:' + w + 'px;height:' + h + 'px' }, [
+      plain ? null : el('div', { class: 'lens', 'aria-hidden': 'true' }),
+      el('div', { class: 'phonebar', 'aria-hidden': 'true' }, [
+        el('span', { text: FMT.clock(new Date().toISOString()) }),
+        el('span', { text: SIM.offline ? 'No signal' : '84%' })
+      ]),
+      handApp(c)
+    ]);
+
+    var zoom = el('div', { class: 'zoom', style: 'width:' + (w + edge) + 'px;height:' + (h + edge) + 'px' }, [kit]);
+    var boxed = el('div', { class: 'zoombox', style: 'width:' + (w + edge) + 'px;height:' + (h + edge) + 'px' }, [zoom]);
+
+    return el('div', { class: 'frame hand' + (d.slate ? ' slate' : '') + (sideways ? ' wide' : '') + (plain ? ' plain' : '') }, [
+      el('div', { class: 'frame__cap' }, [
+        el('span', { class: 'cap', text: d.name + ' · ' + w + ' × ' + h }),
+        U.chip(JOBS[c.person.job]), U.chip(Store.place.short), zoomTag
+      ]),
+      boxed
+    ]);
+  }
+
+  /* Scale the phone to fit. Measures the space rather than guessing, or the
+     stage ends up scrolling sideways by exactly the padding. */
+  function fit() {
+    var boxed = root.querySelector('.zoombox');
+    if (!boxed) return;
+    var zoom = boxed.firstChild, stage = root.querySelector('.stage'), cap = root.querySelector('.frame__cap');
+    var cs = getComputedStyle(stage);
+    var padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    var padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    var capH = cap ? cap.offsetHeight + 8 : 0;
+    var w = parseFloat(zoom.style.width), h = parseFloat(zoom.style.height);
+    var okW = stage.clientWidth - padX - 2, okH = stage.clientHeight - padY - capH - 2;
+    var k = Math.min(1, okW / w, okH / h);
+    if (!isFinite(k) || k <= 0.05) k = 1;
+    zoom.style.transform = 'scale(' + k + ')';
+    boxed.style.width = Math.floor(w * k) + 'px';
+    boxed.style.height = Math.floor(h * k) + 'px';
+    if (zoomTag) zoomTag.textContent = k < 0.995 ? 'shown at ' + Math.round(k * 100) + '%' : 'actual size';
+  }
+
+  /* ------------------------------------------------------------- drawing */
+  var KEEP = ['.stage', '.m-body', '.page'];
+  var toTop = false, pending = null;
+
+  function paint() {
+    var held = toTop ? {} : KEEP.reduce(function (a, sel) {
+      var n = root.querySelector(sel); if (n) a[sel] = n.scrollTop; return a; }, {});
+
+    empty(root);
+    var c = context();
+    root.appendChild(el('div', { class: 'col', style: 'height:100%' }, [
+      bar(), el('div', { class: 'stage' }, [ frame(c) ]) ]));
+
+    if (!toTop) KEEP.forEach(function (sel) {
+      var n = root.querySelector(sel); if (n && held[sel]) n.scrollTop = held[sel]; });
+    toTop = false;
+    fit(); writeAddress();
+  }
+
+  /* requestAnimationFrame never runs in a hidden tab — fall back so the page
+     is never left blank */
+  function draw(top) {
+    if (top) toTop = true;
+    if (pending) return;
+    var run = function () { pending = null; paint(); };
+    pending = document.hidden ? setTimeout(run, 0) : requestAnimationFrame(run);
+  }
+
+  function start() {
+    root = document.getElementById('app');
+    Store.start();
+    readPrefs();
+    readAddress();
+    MOTION.apply(Store.s.motion !== 'off');
+
+    Store.watch(function () { draw(); });
+    window.addEventListener('hashchange', function () { readAddress(); draw(true); });
+    window.addEventListener('resize', function () { fit(); });
+    document.addEventListener('click', function () { if (s.listOpen) { s.listOpen = false; draw(); } });
+    document.addEventListener('keydown', function (e) {
+      if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (e.key === '[' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        s.shut = !s.shut; savePrefs(); draw();
+        A11Y.speak(s.shut ? 'Controls hidden' : 'Controls shown');
+      }
+    });
+
+    paint();
+    CHECK.all(true);
+  }
+
+  return { start:start, go:go, draw:draw, setView:setView, setPlace:setPlace,
+           viewNow:function () { return s.view; }, state:s, context:context, fit:fit };
+})();
+</script>
+
+<script>
+/* ==============================================================================
+   14 · CHECK — the rules, made checkable
+   ------------------------------------------------------------------------------
+   Promises are worth little; these are tests. Run GN.CHECK.all() any time.
+     words()   no system language in anything people read
+     numbers() no made-up figure and no hard-coded unit inside a screen
+     motion()  every animation short enough, and moving nothing that costs
+               layout work on a cheap phone
+     A11Y.audit() contrast, text sizes, touch sizes
+   ============================================================================== */
+var CHECK = (function () {
+
+  /* words we have agreed not to put in front of a person */
+  var BANNED = [
+    'requirement','requirements','allocate','allocation','allocated','allocating',
+    'dispatch','dispatched','dispatching','procurement','procure',
+    'entity','entities','scope','validate','validation','invalid',
+    'sla','pod','inventory','fulfil','fulfill','fulfilment','fulfillment',
+    'consignment','consignee','sku','payload','endpoint','persona','personas',
+    'breach','instantiate','leverage','utilise','utilize','onboard','onboarding',
+    'stakeholder','synergy','granular','robust','seamless','ecosystem','paradigm',
+    'asset','resource','subsystem','config','configure','parameter','initiate'
+  ];
+
+  function scanText(where, text, hits) {
+    if (!text) return;
+    BANNED.forEach(function (bad) {
+      var re = new RegExp('\\b' + bad + '\\b', 'i');
+      if (re.test(text)) hits.push(where + ' → “' + text + '” contains “' + bad + '”');
+    });
+  }
+
+  function checkWords() {
+    var hits = [];
+    Object.keys(TERMS._base).forEach(function (k) { scanText('word list', TERMS._base[k], hits); });
+    Object.keys(REGIONS).forEach(function (r) {
+      var tm = REGIONS[r].terms || {};
+      Object.keys(tm).forEach(function (k) { scanText(r + ' word list', tm[k], hits); });
+    });
+    Object.keys(JOBS).forEach(function (k) { scanText('job title', JOBS[k], hits); });
+    Object.keys(STATUS).forEach(function (k) { scanText('status', STATUS[k], hits); });
+    Object.keys(SIM.reasons).forEach(function (k) { scanText('failure message', SIM.reasons[k], hits); });
+    Object.keys(SCREENS).forEach(function (k) { scanText('page name', screenName(k), hits); });
+    PEOPLE_VIEWS.forEach(function (v) {
+      scanText('what ' + v.id + ' can see', v.sees, hits);
+      v.pages.forEach(function (p) { scanText('menu item', p[1], hits); });
+    });
+    DEVICES.forEach(function (d) { scanText('phone name', d.name, hits); scanText('phone note', d.why, hits); });
+    MOTION.set.forEach(function (m) { scanText('movement note', m.use, hits); });
+    return { checked: 'labels, statuses, failure messages, menus', problems: hits };
+  }
+  function numbers() {
+    var hits = [];
+    Object.keys(SCREENS).forEach(function (id) {
+      var src = String(SCREENS[id].draw);
+
+      /* Look only at real code. Text and style strings are stripped first,
+         otherwise harmless things like font-weight:650 look like data. */
+      var code = src.replace(/'(?:\\.|[^'\\])*'/g, "''").replace(/"(?:\\.|[^"\\])*"/g, '""');
+      var figures = code.match(/\b\d{3,}\b/g);
+      if (figures) hits.push(id + ' has figures written into it: ' + figures.slice(0, 6).join(', ') +
+        ' — every figure must come from CALC');
+
+      /* A grouped number inside text is a made-up figure too: "1,850 people" */
+      var grouped = src.match(/\d{1,3}(?:,\d{3})+/g);
+      if (grouped) hits.push(id + ' has a written-out figure in its text: ' + grouped.slice(0, 4).join(', '));
+
+      /* Units belong to FMT, which knows the place */
+      var units = src.match(/['"][^'"]*\b(kg|lb|km|mi|AED|USD)\b[^'"]*['"]/g);
+      if (units) hits.push(id + ' has a unit written into it: ' + units.slice(0, 4).join(', ') +
+        ' — units must come from FMT');
+    });
+    return { checked: Object.keys(SCREENS).length + ' pages', problems: hits };
+  }
+
+  /* properties that make a cheap phone do layout work again */
+  var COSTLY = ['width','height','margin','padding','top','left','right','bottom',
+                'font-size','line-height','flex','grid','inset','border-width'];
+
+  function motion() {
+    var hits = [];
+    MOTION.set.forEach(function (m) {
+      if (m.ms > MOTION.budget) hits.push(m.name + ' runs ' + m.ms + 'ms, longer than the ' + MOTION.budget + 'ms limit');
+    });
+    var css = '';
+    Array.prototype.forEach.call(document.querySelectorAll('style'), function (n) { css += n.textContent; });
+    var decls = css.match(/transition:[^;}]+/g) || [];
+    decls.forEach(function (d) {
+      COSTLY.forEach(function (prop) {
+        var re = new RegExp('transition:\\s*(?:[^;]*[,\\s])?' + prop + '\\b');
+        if (re.test(d)) hits.push('animates ' + prop + ', which costs layout work: “' + d.trim().slice(0, 70) + '”');
+      });
+    });
+    var reduced = (css.match(/prefers-reduced-motion/g) || []).length;
+    if (!reduced) hits.push('nothing honours “reduce motion”');
+    return { checked: MOTION.set.length + ' movements, ' + decls.length + ' transitions', problems: hits };
+  }
+
+  function all(quiet) {
+    var w = checkWords(), n = numbers(), m = motion(), a = A11Y.audit(true);
+    var total = w.problems.length + n.problems.length + m.problems.length +
+                a.contrastFails + a.textTooSmall.length + a.touchTooSmall.length;
+    var out = { words: w, numbers: n, motion: m, access: a, problems: total, clean: total === 0 };
+    if (!quiet) {
+      console.log('%cChecks: ' + (out.clean ? 'all clean' : out.problems + ' to fix'),
+        'font-weight:bold;color:' + (out.clean ? '#070' : '#b00'));
+      if (w.problems.length) console.warn('Words:', w.problems);
+      if (n.problems.length) console.warn('Numbers:', n.problems);
+      if (m.problems.length) console.warn('Movement:', m.problems);
+      if (a.contrastFails) console.warn('Contrast:', a.contrast);
+      if (a.textTooSmall.length) console.warn('Text too small:', a.textTooSmall);
+      if (a.touchTooSmall.length) console.warn('Touch targets too small:', a.touchTooSmall);
+    } else {
+      console.log('%c Global Nomad ', 'background:#2C3135;color:#fff;font-weight:600');
+      console.log(Store.place.name + ' · ' + PEOPLE_VIEWS.length + ' people · ' +
+                  Object.keys(SCREENS).length + ' pages · ' + DEVICES.length + ' phones');
+      console.log('Checks: ' + (out.clean ? 'all clean' : out.problems + ' to fix — run GN.CHECK.all()'));
+      console.log('Handles: GN.Store GN.CALC GN.FMT GN.SIM GN.U GN.A11Y GN.CHECK GN.Shell GN.addScreen');
+    }
+    return out;
+  }
+
+  return { words: checkWords, numbers: numbers, motion: motion, all: all, BANNED: BANNED, COSTLY: COSTLY };
+})();
+
+
+/* ================================================================= 15 · BOOT */
+window.GN = {
+  TERMS:TERMS, T:T, t:t, JOBS:JOBS, STATUS:STATUS, statusWord:statusWord,
+  REGIONS:REGIONS, makeStock:makeStock,
+  CALC:CALC, Store:Store, FMT:FMT, SIM:SIM, A11Y:A11Y, MOTION:MOTION, DEVICES:DEVICES,
+  U:U, PEOPLE_VIEWS:PEOPLE_VIEWS, SCREENS:SCREENS, addScreen:addScreen, screenName:screenName,
+  words:words, Shell:Shell, CHECK:CHECK
+};
+Shell.start();
+</script>
+</body>
+</html>

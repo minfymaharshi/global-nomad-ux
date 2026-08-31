@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+._*
+
+# editors
+.vscode/
+.idea/
+*.swp
+
+# nothing here is built, so there is no build output to ignore

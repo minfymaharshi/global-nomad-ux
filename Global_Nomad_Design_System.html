@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Global Nomad — Design System</title>
+<meta name="description" content="The wireframe kit for Global Nomad: components, states, spacing, type, icons, movement and handover notes, for phone and desktop.">
+<!--
+================================================================================
+ GLOBAL NOMAD — DESIGN SYSTEM
+ The written record of the wireframe kit. One file, no build step, no network.
+
+ HOW TO READ IT
+   Pick Phone or Desktop at the top. Everything below changes to match: type
+   sizes, touch sizes, which parts appear, and the notes that only apply to
+   one of them.
+
+ WHAT THIS IS NOT
+   Not a look. There is no brand here and no colour carrying meaning. When a
+   look is agreed, the values in "Greys" and "Type" are the only things that
+   change; every component keeps working.
+
+ KEEPING IT HONEST
+   Every component shown here is the same code as the prototype. If a
+   component changes there, its entry here changes in the same pass.
+================================================================================
+-->
+<style>
+:root {
+  --bg:#E9EAEC; --paper:#FFFFFF; --paper-2:#F5F6F7; --paper-3:#ECEEEF;
+  --rule:#C7CACE; --rule-soft:#DEE0E3; --edge:#7E848C;
+  --text:#1C1F22; --text-2:#474C51; --text-3:#656A70; --ghost:#A5AAB0;
+  --solid:#2C3135; --on-solid:#FFFFFF;
+  --good:#2E5E4B; --good-bg:#E8F0EC;
+  --hold:#6A5623; --hold-bg:#F4F0E6;
+  --stop:#7C3535; --stop-bg:#F6EAEA;
+  --note:#35526B; --note-bg:#E8EDF1;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --figs:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+  --r1:3px; --r2:5px; --r3:8px; --round:99px;
+  --tap:32px; --tap-mob:44px;
+  --lift-1:0 1px 2px rgba(28,31,34,.07);
+  --lift-2:0 4px 16px rgba(28,31,34,.12);
+  --lift-3:0 16px 44px rgba(28,31,34,.22);
+  --m-tap:120ms; --m-panel:240ms; --m-page:280ms; --m-arrive:200ms; --m-leave:160ms;
+  --ease:cubic-bezier(.2,0,.2,1); --ease-out:cubic-bezier(0,0,.2,1);
+  --rail:230px;
+}
+*,*::before,*::after { box-sizing:border-box; }
+html,body { height:100%; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:var(--font);
+  font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+button,input,select { font:inherit; color:inherit; }
+button { cursor:pointer; }
+:focus-visible { outline:2px solid var(--text); outline-offset:2px; border-radius:var(--r1); }
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{ transition-duration:1ms!important; animation-duration:1ms!important; } }
+.vh { position:absolute!important; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+/* ---------------------------------------------------------------- shell */
+.wrap { display:grid; grid-template-columns:var(--rail) minmax(0,1fr); min-height:100%; }
+.rail { border-right:1px solid var(--rule); background:var(--paper-2);
+  position:sticky; top:0; align-self:start; max-height:100vh; overflow-y:auto; padding:var(--sp5) 0; }
+.rail__id { padding:0 var(--sp4) var(--sp4); border-bottom:1px solid var(--rule-soft); margin-bottom:var(--sp3); }
+.rail__id b { display:block; font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.rail__id span { display:block; font-size:11.5px; color:var(--text-3); margin-top:2px; }
+.rail nav { display:flex; flex-direction:column; gap:1px; padding:0 var(--sp2); }
+.rail a { display:grid; grid-template-columns:22px 1fr; gap:var(--sp2); align-items:baseline;
+  min-height:var(--tap); padding:6px 10px; border-radius:var(--r2);
+  font-size:13px; color:var(--text-2); text-decoration:none; }
+.rail a:hover { background:var(--paper-3); color:var(--text); }
+.rail a b { font-family:var(--figs); font-size:10.5px; color:var(--text-3); font-weight:400; }
+main { min-width:0; }
+.inner { padding:0 clamp(20px,4vw,52px) 120px; max-width:1180px; }
+
+/* ------------------------------------------------------------- top bar */
+.top { position:sticky; top:0; z-index:20; background:var(--paper-3);
+  border-bottom:1px solid var(--edge); padding:var(--sp3) clamp(20px,4vw,52px);
+  display:flex; align-items:center; gap:var(--sp4); flex-wrap:wrap; }
+.cap { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+.pick { display:inline-flex; background:var(--paper); border:1px solid var(--edge);
+  border-radius:var(--r2); padding:2px; }
+.pick button { background:none; border:0; border-radius:var(--r1); padding:0 16px;
+  min-height:30px; min-width:80px; font-size:13px; font-weight:500; color:var(--text-2);
+  transition:background var(--m-tap) var(--ease); }
+.pick button[aria-pressed="true"] { background:var(--solid); color:var(--on-solid); }
+.fill { flex:1 1 auto; }
+
+/* ------------------------------------------------------------ headings */
+.hero { padding:var(--sp7) 0 var(--sp5); border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(28px,3.6vw,40px); font-weight:700; letter-spacing:-.02em; margin:8px 0 0; line-height:1.08; }
+.hero p { font-size:17px; color:var(--text-2); max-width:62ch; margin:14px 0 0; }
+section { padding:var(--sp7) 0 0; scroll-margin-top:70px; }
+.shead { display:flex; align-items:baseline; gap:var(--sp3); border-bottom:1px solid var(--rule);
+  padding-bottom:var(--sp2); margin-bottom:var(--sp5); }
+.shead b { font-family:var(--figs); font-size:12px; color:var(--text-3); }
+h2 { font-size:24px; font-weight:650; letter-spacing:-.014em; margin:0; }
+h3 { font-size:16px; font-weight:650; margin:var(--sp6) 0 var(--sp3); }
+h4 { font-size:13px; font-weight:650; margin:var(--sp5) 0 var(--sp2); color:var(--text-2); }
+p { margin:0 0 var(--sp3); max-width:70ch; }
+ul,ol { margin:0 0 var(--sp3); padding-left:20px; max-width:70ch; }
+li { margin-bottom:5px; }
+code { font-family:var(--figs); font-size:.88em; background:var(--paper-3);
+  padding:1px 5px; border-radius:var(--r1); }
+
+/* ------------------------------------------------------------- tables */
+.tw { overflow-x:auto; border:1px solid var(--rule); border-radius:var(--r2);
+  background:var(--paper); margin:var(--sp4) 0; }
+table { border-collapse:collapse; width:100%; font-size:13px; }
+th { text-align:left; font-size:11px; font-weight:650; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--text-3); padding:9px 12px; border-bottom:1px solid var(--rule);
+  background:var(--paper-2); white-space:nowrap; }
+td { padding:9px 12px; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+tbody tr:last-child td { border-bottom:0; }
+td.f, th.f { font-family:var(--figs); font-size:12px; white-space:nowrap; }
+.pass { color:var(--good); font-weight:650; }
+.fail { color:var(--stop); font-weight:650; }
+
+/* ------------------------------------------------------- entry blocks */
+.entry { border:1px solid var(--rule); border-radius:var(--r3); background:var(--paper);
+  margin:var(--sp5) 0; overflow:hidden; }
+.entry__top { padding:var(--sp4) var(--sp5); border-bottom:1px solid var(--rule-soft);
+  display:flex; align-items:baseline; gap:var(--sp3); flex-wrap:wrap; }
+.entry__top h3 { margin:0; font-size:17px; }
+.entry__top code { font-size:12px; }
+.entry__why { font-size:13px; color:var(--text-2); margin:4px 0 0; flex:1 1 100%; max-width:70ch; }
+.demo { padding:var(--sp5); background:var(--paper-2); border-bottom:1px solid var(--rule-soft);
+  display:flex; flex-wrap:wrap; gap:var(--sp3); align-items:flex-start; }
+.demo.stack { flex-direction:column; }
+.demo__lbl { flex:1 1 100%; margin:0 0 -4px; }
+.spec { padding:var(--sp4) var(--sp5); }
+.spec dl { display:grid; grid-template-columns:132px 1fr; gap:9px var(--sp4); margin:0; }
+.spec dt { font-size:11px; font-weight:650; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--text-3); padding-top:2px; }
+.spec dd { margin:0; font-size:13px; color:var(--text-2); }
+.spec dd b { color:var(--text); }
+
+.only-web, .only-mob { display:none; }
+body[data-face="web"] .only-web { display:revert; }
+body[data-face="mob"] .only-mob { display:revert; }
+body[data-face="web"] .demo.only-web { display:flex; }
+body[data-face="mob"] .demo.only-mob { display:flex; }
+.badge { display:inline-block; font-size:10.5px; font-weight:650; letter-spacing:.04em;
+  text-transform:uppercase; padding:2px 7px; border-radius:var(--round);
+  border:1px solid var(--edge); color:var(--text-2); }
+.badge.w { border-color:var(--note); color:var(--note); background:var(--note-bg); }
+.badge.m { border-color:var(--good); color:var(--good); background:var(--good-bg); }
+
+.callout { border:1px solid var(--edge); border-left-width:4px; border-radius:var(--r2);
+  padding:var(--sp3) var(--sp4); margin:var(--sp4) 0; background:var(--paper); max-width:74ch; }
+.callout.stop { border-color:var(--stop); border-left-color:var(--stop); background:var(--stop-bg); }
+.callout.hold { border-color:var(--hold); border-left-color:var(--hold); background:var(--hold-bg); }
+.callout.good { border-color:var(--good); border-left-color:var(--good); background:var(--good-bg); }
+.callout b { display:block; font-size:13px; }
+.callout p { margin:4px 0 0; font-size:13px; color:var(--text-2); }
+
+.swatch { display:flex; align-items:center; gap:var(--sp3); }
+.swatch i { width:34px; height:34px; border-radius:var(--r2); border:1px solid var(--edge); display:block; }
+.rules { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:var(--sp3); margin:var(--sp4) 0; }
+.rule-card { border:1px solid var(--rule); border-radius:var(--r2); padding:var(--sp4); background:var(--paper); }
+.rule-card.do { border-left:4px solid var(--good); }
+.rule-card.dont { border-left:4px solid var(--stop); }
+.rule-card b { display:block; font-size:12px; font-weight:650; letter-spacing:.05em;
+  text-transform:uppercase; margin-bottom:6px; }
+.rule-card.do b { color:var(--good); } .rule-card.dont b { color:var(--stop); }
+.rule-card p { margin:0; font-size:13px; color:var(--text-2); }
+
+.iconwall { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:var(--sp3); margin:var(--sp4) 0; }
+.iconcell { border:1px solid var(--rule); border-radius:var(--r2); background:var(--paper);
+  padding:var(--sp3) var(--sp2); text-align:center; }
+.iconcell svg { display:block; margin:0 auto 6px; color:var(--text); }
+.iconcell span { font-size:11px; color:var(--text-3); font-family:var(--figs); }
+
+.ruler { display:flex; align-items:flex-end; gap:var(--sp2); margin:var(--sp4) 0; flex-wrap:wrap; }
+.ruler div { text-align:center; }
+.ruler i { display:block; background:var(--solid); border-radius:2px; }
+.ruler span { display:block; font-family:var(--figs); font-size:10.5px; color:var(--text-3); margin-top:5px; }
+
+@media (max-width:1000px) {
+  .wrap { grid-template-columns:1fr; }
+  .rail { position:static; max-height:none; border-right:0; border-bottom:1px solid var(--rule);
+    padding:var(--sp4) clamp(20px,4vw,52px); }
+  .rail nav { flex-direction:row; flex-wrap:wrap; gap:4px; padding:0; }
+  .rail a { border:1px solid var(--rule); border-radius:var(--round); grid-template-columns:auto auto; }
+  .spec dl { grid-template-columns:1fr; gap:2px var(--sp4); }
+  .spec dt { margin-top:8px; }
+}
+</style>
+</head>
+<body data-face="web">
+<div id="root"></div>
+<script>
+/* the kit's own components, drawn live so this file cannot drift from reality */
+var ICONS = {
+  menu:'<line x1="3" y1="6" x2="19" y2="6"/><line x1="3" y1="11" x2="19" y2="11"/><line x1="3" y1="16" x2="19" y2="16"/>',
+  back:'<polyline points="13,4 6,11 13,18"/>',
+  forward:'<polyline points="9,4 16,11 9,18"/>',
+  close:'<line x1="5" y1="5" x2="17" y2="17"/><line x1="17" y1="5" x2="5" y2="17"/>',
+  down:'<polyline points="4,8 11,15 18,8"/>',
+  up:'<polyline points="4,14 11,7 18,14"/>',
+  plus:'<line x1="11" y1="4" x2="11" y2="18"/><line x1="4" y1="11" x2="18" y2="11"/>',
+  minus:'<line x1="4" y1="11" x2="18" y2="11"/>',
+  tick:'<polyline points="4,12 9,17 18,5"/>',
+  warn:'<path d="M11 3 L20 19 H2 Z"/><line x1="11" y1="9" x2="11" y2="13"/><line x1="11" y1="16" x2="11" y2="16"/>',
+  box:'<path d="M3 7 L11 3 L19 7 V16 L11 20 L3 16 Z"/><line x1="3" y1="7" x2="11" y2="11"/><line x1="19" y1="7" x2="11" y2="11"/><line x1="11" y1="11" x2="11" y2="20"/>',
+  truck:'<rect x="2" y="7" width="10" height="8"/><path d="M12 9 h4 l3 3 v3 h-7 Z"/><circle cx="6" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>',
+  home:'<path d="M3 10 L11 3 L19 10 V19 H3 Z"/>',
+  list:'<line x1="7" y1="6" x2="19" y2="6"/><line x1="7" y1="11" x2="19" y2="11"/><line x1="7" y1="16" x2="19" y2="16"/><line x1="3" y1="6" x2="3" y2="6"/><line x1="3" y1="11" x2="3" y2="11"/><line x1="3" y1="16" x2="3" y2="16"/>',
+  bell:'<path d="M6 9 a5 5 0 0 1 10 0 v4 l2 3 H4 l2-3 Z"/><path d="M9 19 a2 2 0 0 0 4 0"/>',
+  person:'<circle cx="11" cy="7" r="3.5"/><path d="M4 19 a7 7 0 0 1 14 0"/>',
+  pin:'<path d="M11 20 s6-6.5 6-11 a6 6 0 0 0-12 0 c0 4.5 6 11 6 11 Z"/><circle cx="11" cy="9" r="2"/>',
+  clock:'<circle cx="11" cy="11" r="8"/><polyline points="11,6 11,11 15,13"/>',
+  camera:'<path d="M3 8 h3 l1.5-2 h7 L16 8 h3 v10 H3 Z"/><circle cx="11" cy="13" r="3"/>',
+  phone:'<path d="M6 3 h4 l1.5 4 -2 2 a10 10 0 0 0 5 5 l2-2 4 1.5 v4 a2 2 0 0 1-2 2 A16 16 0 0 1 4 5 a2 2 0 0 1 2-2 Z"/>',
+  refresh:'<path d="M18 11 a7 7 0 1 1-3-5.7"/><polyline points="18,4 18,10 12,10"/>',
+  save:'<path d="M4 4 h10 l4 4 v10 H4 Z"/><polyline points="8,4 8,9 14,9"/><rect x="8" y="13" width="6" height="5"/>',
+  search:'<circle cx="9.5" cy="9.5" r="6"/><line x1="14" y1="14" x2="19" y2="19"/>',
+  offline:'<line x1="4" y1="4" x2="18" y2="18"/><path d="M6 13 a7 7 0 0 1 10-4"/><line x1="11" y1="17" x2="11" y2="17"/>'
+};
+function svgIcon(name, size) {
+  return '<svg viewBox="0 0 22 22" width="' + (size || 22) + '" height="' + (size || 22) +
+    '" aria-hidden="true" focusable="false" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">' +
+    (ICONS[name] || ICONS.box) + '</svg>';
+}
+function ratio(a, b) {
+  function bits(h){ h=String(h).trim().replace('#',''); if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function lum(h){ var c=bits(h).map(function(v){ var s=v/255;
+    return s<=0.04045? s/12.92 : Math.pow((s+0.055)/1.055,2.4); });
+    return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]; }
+  var la=lum(a), lb=lum(b), hi=Math.max(la,lb), lo=Math.min(la,lb);
+  return Math.round(((hi+0.05)/(lo+0.05))*100)/100;
+}
+function tokenValue(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+</script>
+
+<style>
+/* ==============================================================================
+   COMPONENT STYLES — copied from Global_Nomad_UX.html, section 7.
+   These two blocks must be changed together. If you edit a component in the
+   prototype, paste the change here in the same commit; the demos below are the
+   only way this file stays truthful.
+   ============================================================================== */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-height:var(--tap); min-width:var(--tap); background:var(--paper);
+  border:1px solid var(--edge); color:var(--text); border-radius:var(--r2);
+  padding:6px 14px; font-size:13px; font-weight:500; white-space:nowrap;
+  transition:background var(--m-tap) var(--ease), transform var(--m-tap) var(--ease); }
+.btn:hover:not(:disabled) { background:var(--paper-2); }
+.btn:active:not(:disabled) { transform:scale(.97); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn.go { background:var(--solid); border-color:var(--solid); color:var(--on-solid); }
+.btn.warn-btn { border-color:var(--stop); color:var(--stop); }
+.btn.quiet { background:none; border-color:transparent; color:var(--text-2); }
+.btn.small { min-height:26px; padding:3px 10px; font-size:12px; }
+.btn.big { min-height:var(--tap-mob); padding:11px 20px; font-size:14.5px; }
+.spin { width:12px; height:12px; border:2px solid currentColor; border-right-color:transparent;
+  border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+body[data-face="mob"] .demo .btn { min-height:var(--tap-mob); min-width:var(--tap-mob); }
+
+.chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:650;
+  padding:2px 8px; border-radius:var(--round); border:1px solid var(--edge);
+  color:var(--text-2); white-space:nowrap; }
+.chip.good { border-color:var(--good); color:var(--good); background:var(--good-bg); }
+.chip.hold { border-color:var(--hold); color:var(--hold); background:var(--hold-bg); }
+.chip.stop { border-color:var(--stop); color:var(--stop); background:var(--stop-bg); }
+.chip.note { border-color:var(--note); color:var(--note); background:var(--note-bg); }
+.chip.solid { background:var(--solid); border-color:var(--solid); color:var(--on-solid); }
+body[data-face="mob"] .demo .chip { font-size:12px; padding:3px 9px; }
+
+.box { background:var(--paper); border:1px solid var(--rule); border-radius:var(--r2); padding:var(--sp4); }
+.box.flush { padding:0; }
+.box__top { display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3) var(--sp4);
+  border-bottom:1px solid var(--rule-soft); }
+.box__top h3 { margin:0; font-size:13.5px; font-weight:650; }
+.box__mid { padding:var(--sp4); }
+.box__end { padding:var(--sp3) var(--sp4); border-top:1px solid var(--rule-soft);
+  background:var(--paper-2); display:flex; gap:var(--sp2); align-items:center; flex-wrap:wrap; }
+.figure b { display:block; font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; }
+.figure span { display:block; font-size:11.5px; color:var(--text-3); margin-top:1px; }
+
+.ask { display:block; margin:0 0 var(--sp4); min-width:240px; }
+.ask__label { display:block; font-size:12.5px; font-weight:650; margin-bottom:5px; }
+body[data-face="mob"] .demo .ask__label { font-size:14px; }
+.ask .tip { font-size:11.5px; color:var(--text-3); margin:4px 0 0; }
+.ask .wrong { font-size:12px; color:var(--stop); margin:5px 0 0; display:flex; gap:5px;
+  align-items:flex-start; font-weight:500; }
+.in,.sel,.note-in { width:100%; min-height:var(--tap); background:var(--paper);
+  border:1px solid var(--edge); border-radius:var(--r2); padding:7px 10px; font-size:13.5px; }
+body[data-face="mob"] .demo .in, body[data-face="mob"] .demo .sel { min-height:var(--tap-mob); font-size:16px; }
+.in::placeholder { color:var(--text-3); }
+.ask.bad .in { border-color:var(--stop); border-width:2px; }
+.num-set { display:inline-flex; border:1px solid var(--edge); border-radius:var(--r2);
+  overflow:hidden; background:var(--paper); }
+.num-set button { background:var(--paper-2); border:0; min-width:var(--tap); min-height:var(--tap); color:var(--text); }
+.num-set input { width:64px; border:0; text-align:center; padding:6px 2px;
+  font-variant-numeric:tabular-nums; font-size:14px; }
+body[data-face="mob"] .demo .num-set button { min-width:var(--tap-mob); min-height:var(--tap-mob); }
+.tick { display:flex; gap:var(--sp2); align-items:flex-start; min-height:var(--tap); }
+.tick input { margin:3px 0 0; width:18px; height:18px; }
+.tick small { display:block; color:var(--text-3); font-size:11.5px; }
+
+.say { display:flex; gap:var(--sp3); align-items:flex-start; flex-wrap:wrap;
+  border:1px solid var(--edge); border-left-width:4px; border-radius:var(--r2);
+  padding:var(--sp3) var(--sp4); background:var(--paper); width:100%; }
+.say.stop { border-color:var(--stop); border-left-color:var(--stop); background:var(--stop-bg); }
+.say.hold { border-color:var(--hold); border-left-color:var(--hold); background:var(--hold-bg); }
+.say.good { border-color:var(--good); border-left-color:var(--good); background:var(--good-bg); }
+.say.note { border-color:var(--note); border-left-color:var(--note); background:var(--note-bg); }
+.say b { display:block; font-size:13px; font-weight:650; }
+.say p { margin:3px 0 0; font-size:12.5px; color:var(--text-2); }
+.say__do { margin-left:auto; display:flex; gap:var(--sp2); }
+
+.note-card { background:var(--text); color:#fff; border-radius:var(--r2);
+  padding:10px var(--sp3) 10px var(--sp4); box-shadow:var(--lift-2);
+  display:flex; gap:var(--sp3); align-items:flex-start; max-width:340px; }
+.note-card b { display:block; font-size:13px; font-weight:650; }
+.note-card span { display:block; font-size:12px; opacity:.85; margin-top:2px; }
+.note-card.stop { background:#6B2E2E; } .note-card.good { background:#27503F; }
+.note-card__x { background:none; border:0; color:inherit; opacity:.75; min-width:28px; min-height:28px; }
+
+.none { border:1px dashed var(--edge); border-radius:var(--r2); padding:var(--sp6) var(--sp5);
+  text-align:center; background:var(--paper-2); width:100%; }
+.none b { display:block; font-size:14px; font-weight:650; }
+.none p { margin:6px auto 0; font-size:13px; color:var(--text-3); max-width:44ch; }
+.bone { background:var(--paper-3); border-radius:var(--r1); animation:pulse 1.3s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
+
+.steps { display:flex; gap:0; margin:0; padding:0; list-style:none; flex-wrap:wrap; width:100%; }
+.steps li { flex:1 1 130px; border-top:3px solid var(--rule); padding:var(--sp2) var(--sp3) 0 0; }
+.steps li b { display:block; font-family:var(--figs); font-size:10.5px; color:var(--text-3); }
+.steps li span { display:block; font-size:12.5px; color:var(--text-3); }
+.steps li.was { border-top-color:var(--text-2); }
+.steps li.was b,.steps li.was span { color:var(--text-2); }
+.steps li.now { border-top-color:var(--solid); }
+.steps li.now b,.steps li.now span { color:var(--text); }
+.steps li.now span { font-weight:650; }
+.meter { height:6px; border-radius:var(--round); background:var(--paper-3); overflow:hidden;
+  border:1px solid var(--rule); width:220px; }
+.meter i { display:block; height:100%; width:100%; background:var(--solid);
+  transform-origin:left center; transition:transform var(--m-page) var(--ease); }
+
+table.grid { border-collapse:collapse; width:100%; font-size:13px; }
+table.grid th { text-align:left; font-size:11px; font-weight:650; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-3); padding:9px 12px;
+  border-bottom:1px solid var(--rule); background:var(--paper-2); }
+table.grid td { padding:9px 12px; border-bottom:1px solid var(--rule-soft); }
+table.grid tbody tr:last-child td { border-bottom:0; }
+.figs-col { text-align:right; font-variant-numeric:tabular-nums; }
+.grid-wrap { border:1px solid var(--rule); border-radius:var(--r2); background:var(--paper); width:100%; overflow-x:auto; }
+</style>
+
+<div class="wrap">
+<aside class="rail">
+  <div class="rail__id">
+    <b>Global Nomad</b>
+    <span>Design system · wireframe stage</span>
+  </div>
+  <nav aria-label="Sections">
+    <a href="#use"><b>00</b><span>How to use this</span></a>
+    <a href="#words"><b>01</b><span>Words</span></a>
+    <a href="#type"><b>02</b><span>Type</span></a>
+    <a href="#space"><b>03</b><span>Space</span></a>
+    <a href="#greys"><b>04</b><span>Greys</span></a>
+    <a href="#icons"><b>05</b><span>Icons</span></a>
+    <a href="#movement"><b>06</b><span>Movement</span></a>
+    <a href="#components"><b>07</b><span>Components</span></a>
+    <a href="#patterns"><b>08</b><span>Patterns</span></a>
+    <a href="#wrong"><b>09</b><span>When things go wrong</span></a>
+    <a href="#access"><b>10</b><span>Access record</span></a>
+    <a href="#handover"><b>11</b><span>Handover</span></a>
+  </nav>
+</aside>
+
+<main>
+<div class="top">
+  <span class="cap" id="face-label">Designing for</span>
+  <div class="pick" role="group" aria-labelledby="face-label">
+    <button id="pick-web" aria-pressed="true">Desktop</button>
+    <button id="pick-mob" aria-pressed="false">Phone</button>
+  </div>
+  <span class="fill"></span>
+  <span class="cap" id="face-note">Sizes, touch targets and notes below follow this choice</span>
+</div>
+
+<div class="inner">
+
+<header class="hero">
+  <span class="cap">Wireframe stage · no look agreed yet</span>
+  <h1>How Global Nomad is built</h1>
+  <p>Every component, every state, every measurement, for a phone in a flooded
+     street and a desktop in an office. Greys only until a look is agreed —
+     then the values in <a href="#greys">Greys</a> and <a href="#type">Type</a>
+     are the only things that change.</p>
+</header>
+
+<section id="use">
+  <div class="shead"><b>00</b><h2>How to use this</h2></div>
+  <p>Pick <b>Desktop</b> or <b>Phone</b> at the top. Type sizes, touch sizes and
+     the notes all follow that choice, because the same component is not the
+     same thing in a warehouse office and on a phone in the rain.</p>
+  <p>Every component below is live, drawn by the same code as the prototype. If
+     something looks wrong here it is wrong there too.</p>
+
+  <div class="rules">
+    <div class="rule-card do"><b>Do</b><p>Change a component here in the same commit you change it in the prototype. The two files are kept in step by hand.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Add a colour, a typeface or a shadow that is not in this file. If something needs one, add it here first and say why.</p></div>
+  </div>
+
+  <div class="callout">
+    <b>Still open: what we call things in each place</b>
+    <p>A site is a “relief camp” in the Emirates and a “shelter” in the States.
+       That switch is built and working, but the full list of words per place is
+       not settled. See <a href="#words">Words</a>.</p>
+  </div>
+</section>
+
+<section id="words">
+  <div class="shead"><b>01</b><h2>Words</h2></div>
+  <p>Someone reading a cracked screen in daylight has to understand a button
+     without stopping to think. That rules out most of the language a system
+     naturally grows.</p>
+
+  <h3>The four rules</h3>
+  <ol>
+    <li><b>Say what will happen.</b> The button says <code>Send request</code>. The message afterwards says <code>Request sent</code>.</li>
+    <li><b>No system words.</b> Nothing about allocating, dispatching, validating, scoping or fulfilling.</li>
+    <li><b>Numbers before adjectives.</b> “3 of 60 boxes arrived”, not “partially delivered”.</li>
+    <li><b>Errors say what to do next.</b> Never “an error occurred”.</li>
+  </ol>
+
+  <h3>What we changed</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Was</th><th>Now</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Requirement</td><td>Request</td><td>Buying-department word. A site asks for things.</td></tr>
+      <tr><td>Allocate &amp; Pick</td><td>Set stock aside</td><td>Says what actually happens to the boxes.</td></tr>
+      <tr><td>Dispatch Board</td><td>Send out</td><td>“Board” means nothing to anyone.</td></tr>
+      <tr><td>Procurement</td><td>Restocking</td><td>Plain, and it is what the job is.</td></tr>
+      <tr><td>Inventory &amp; Batches</td><td>Stock on hand</td><td>Warehouse staff say stock.</td></tr>
+      <tr><td>Kit Builder</td><td>Kits</td><td>Nothing is being “built”.</td></tr>
+      <tr><td>Proof of Delivery</td><td>Confirm handover</td><td>Describes the moment, not the paperwork.</td></tr>
+      <tr><td>scope: WH-04</td><td>You can see: one warehouse</td><td>A code is not an explanation.</td></tr>
+      <tr><td>Dashboard</td><td>Overview</td><td>Plainer, and true.</td></tr>
+      <tr><td>SLA breach</td><td>Missed the time it was needed</td><td>An abbreviation nobody outside the team knows.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Words that change by place</h3>
+  <p>Held in one list per place. Adding a place means adding its overrides and
+     nothing else — no screen mentions a place by name.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Meaning</th><th>Emirates</th><th>States</th><th class="f">Token</th></tr></thead>
+    <tbody>
+      <tr><td>Where food is taken</td><td>Relief camp</td><td>Shelter</td><td class="f">{site}</td></tr>
+      <tr><td>Where stock is kept</td><td>Warehouse</td><td>Warehouse</td><td class="f">{store}</td></tr>
+      <tr><td>Region inside the country</td><td>Emirate</td><td>State</td><td class="f">{area}</td></tr>
+      <tr><td>What a site asks for</td><td>Request</td><td>Request</td><td class="f">{request}</td></tr>
+    </tbody>
+  </table></div>
+  <p>A label may contain <code>{Site}</code> for the word with a capital or
+     <code>{site}</code> for mid-sentence. So one label,
+     <code>Stock at this {site}</code>, reads correctly in both places.</p>
+
+  <div class="callout hold">
+    <b>Needs a decision</b>
+    <p>The list above covers four words. There are more — “delivery” versus
+       “run”, “job” versus “trip”, whether a driver sees the same nouns as an
+       office. Worth settling before a large batch of screen copy is written.</p>
+  </div>
+
+  <h3>Words we do not use</h3>
+  <p>Checked automatically. The prototype fails its own check if any of these
+     reaches a label, a status, a menu item or an error message.</p>
+  <div class="tw"><table><tbody id="banned-list"></tbody></table></div>
+</section>
+
+<section id="type">
+  <div class="shead"><b>02</b><h2>Type</h2></div>
+  <p>System fonts only: nothing to download, nothing shifts while loading, and
+     it works with no signal. Arabic and Spanish read in the same stack.</p>
+
+  <div class="only-web">
+    <h3>Desktop sizes</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Use</th><th class="f">Size</th><th class="f">Weight</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Page title</td><td class="f">21px</td><td class="f">650</td><td>One per page</td></tr>
+        <tr><td>Section title</td><td class="f">15px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Sub-heading</td><td class="f">13.5px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Body</td><td class="f">14px</td><td class="f">400</td><td>65–75 characters a line</td></tr>
+        <tr><td>Field label</td><td class="f">12.5px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Supporting text</td><td class="f">12px</td><td class="f">400</td><td>Smallest allowed</td></tr>
+        <tr><td>Small caps label</td><td class="f">11px</td><td class="f">600</td><td>Never more than four words</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="only-mob">
+    <h3>Phone sizes</h3>
+    <p>Bigger across the board. Read outdoors, one hand, possibly gloved.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Use</th><th class="f">Size</th><th class="f">Weight</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Page title</td><td class="f">22px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Body</td><td class="f">17px</td><td class="f">400</td><td>45–60 characters a line</td></tr>
+        <tr><td>Field label</td><td class="f">14px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Field text</td><td class="f">16px</td><td class="f">400</td><td>16px stops the browser zooming on focus</td></tr>
+        <tr><td>Big number</td><td class="f">22px</td><td class="f">650</td><td>Fixed-width figures</td></tr>
+        <tr><td>Supporting text</td><td class="f">13px</td><td class="f">400</td><td>Smallest allowed</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><b>Never below 13px on a phone</b>
+      <p>Below that it stops being readable in sunlight. The check fails if any
+         drawn text is smaller.</p></div>
+  </div>
+
+  <h3>Rules for both</h3>
+  <ul>
+    <li>Numbers that line up in a column use fixed-width figures.</li>
+    <li>No long stretches of capitals — four words at most.</li>
+    <li>Everything must survive 200% zoom and wider letter spacing without breaking.</li>
+    <li>Only two weights: 400 for reading, 650 for headings and labels.</li>
+  </ul>
+</section>
+
+<section id="space">
+  <div class="shead"><b>03</b><h2>Space</h2></div>
+  <p>One 4px step. Nothing in between. If a gap needs a value not on this
+     ladder, the layout is wrong.</p>
+  <div class="ruler" id="ruler"></div>
+
+  <h3>Where each step goes</h3>
+  <div class="tw"><table>
+    <thead><tr><th class="f">Step</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td class="f">4</td><td>Gap between an icon and its word</td></tr>
+      <tr><td class="f">8</td><td>Between buttons; inside a chip</td></tr>
+      <tr><td class="f">12</td><td>Between rows in a list; card header padding</td></tr>
+      <tr><td class="f">16</td><td>Inside a card; between fields</td></tr>
+      <tr><td class="f">24</td><td>Page padding; between sections of a form</td></tr>
+      <tr><td class="f">32</td><td>Above a section heading</td></tr>
+      <tr><td class="f">48</td><td>Inside an empty state</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Touch and click sizes</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Where</th><th class="f">Smallest allowed</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Anything inside the phone app</td><td class="f">44 × 44</td><td>A thumb, possibly gloved, possibly wet</td></tr>
+      <tr><td>Anything on desktop</td><td class="f">24 × 24</td><td>WCAG 2.2 minimum</td></tr>
+      <tr><td>Demo controls</td><td class="f">32 × 32</td><td>Comfortable with a mouse, still fine on a tablet</td></tr>
+    </tbody>
+  </table></div>
+  <p>Both dimensions, not just height. An icon-only button 33px wide fails even
+     if it is 44px tall — that was a real bug caught by the check.</p>
+</section>
+
+<section id="greys">
+  <div class="shead"><b>04</b><h2>Greys</h2></div>
+  <p>Slightly cool greys, chosen and then measured. The numbers below are
+     computed live in this page, not copied from a note.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Token</th><th></th><th class="f">Value</th><th>Use</th><th class="f">On white</th></tr></thead>
+    <tbody id="grey-rows"></tbody>
+  </table></div>
+
+  <h3>Rules</h3>
+  <div class="rules">
+    <div class="rule-card do"><b>Do</b><p>Carry meaning in words and shape first. Colour only ever repeats what the text already says.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Use <code>--ghost</code> for text. It is 2.3:1 and fails. Decoration only.</p></div>
+    <div class="rule-card do"><b>Do</b><p>Use <code>--edge</code> for the outline of anything you can touch. It is the only border that reaches 3:1.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Use <code>--rule</code> for a control outline. It is 1.6:1 — fine for a divider, not for a button.</p></div>
+  </div>
+
+  <h3>Meaning colours</h3>
+  <p>Four, each with its own quiet background. All are readable, all are
+     distinguishable without colour vision, because each is always paired with a
+     word and an icon.</p>
+  <div class="demo stack" style="background:var(--paper);border:1px solid var(--rule);border-radius:var(--r2)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="chip good">Complete</span>
+      <span class="chip hold">Waiting for stock</span>
+      <span class="chip stop">Turned down</span>
+      <span class="chip note">Sent</span>
+      <span class="chip">Draft</span>
+      <span class="chip solid">4 new</span>
+    </div>
+  </div>
+</section>
+
+<section id="icons">
+  <div class="shead"><b>05</b><h2>Icons</h2></div>
+  <p>Drawn as plain shapes in the page. Nothing downloaded, so they work with no
+     signal and stay sharp at any size. Thick strokes and big forms, because
+     they have to read on a scratched screen in bright sun.</p>
+
+  <div class="rules">
+    <div class="rule-card do"><b>Do</b><p>Put a word next to the icon for anything that changes data.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Use an icon alone, except for close, back and menu — and those still carry a spoken label.</p></div>
+    <div class="rule-card do"><b>Do</b><p>Draw at 20–22px on desktop, 22–24px on a phone, inside a 44px touch area.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Add fine detail, thin strokes or a second colour. It disappears at size.</p></div>
+  </div>
+
+  <div class="iconwall" id="iconwall"></div>
+  <p>Add one by adding a shape to the list. Two lines of code, no file, no build
+     step, no licence to check.</p>
+</section>
+
+<section id="movement">
+  <div class="shead"><b>06</b><h2>Movement</h2></div>
+  <p>Five movements. Each has a job. Nothing else moves.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Name</th><th class="f">Time</th><th>What it is for</th><th>What moves</th></tr></thead>
+    <tbody id="motion-rows"></tbody>
+  </table></div>
+
+  <h3>The four rules</h3>
+  <ol>
+    <li><b>Only fading and moving.</b> Never width, height, padding or type size — those make a cheap phone redo its layout and the animation stutters.</li>
+    <li><b>Nothing longer than 320ms.</b> Past that it feels like waiting.</li>
+    <li><b>Everything switches off.</b> The system “reduce motion” setting and the Movement control in the prototype both stop all of it.</li>
+    <li><b>Movement never delays a task.</b> The button responds first; the animation is decoration on top.</li>
+  </ol>
+
+  <div class="callout good">
+    <b>Caught by this rule</b>
+    <p>The progress bar animated its <code>width</code>, which makes the phone
+       recalculate layout on every frame. It now scales instead. The check
+       fails the build if that comes back.</p>
+  </div>
+
+  <h3>Waiting</h3>
+  <ul>
+    <li>Under 400ms: nothing. A flash of a spinner is worse than no spinner.</li>
+    <li>Over 400ms: the button shows a spinner and says what it is doing.</li>
+    <li>A whole screen loading: grey blocks in the shape of the content, never a blank page.</li>
+  </ul>
+  <div class="demo">
+    <button class="btn go" disabled aria-busy="true"><span class="spin"></span><span>Saving…</span></button>
+    <div style="flex:1 1 240px;display:flex;flex-direction:column;gap:8px">
+      <div class="bone" style="height:14px;width:55%"></div>
+      <div class="bone" style="height:14px;width:80%"></div>
+      <div class="bone" style="height:14px;width:35%"></div>
+    </div>
+  </div>
+</section>
+
+<section id="components">
+  <div class="shead"><b>07</b><h2>Components</h2></div>
+  <p>Each one shows what it looks like, every state it can be in, and what a
+     developer needs to know. Where a phone differs from a desktop, both are
+     given.</p>
+
+  <!-- ------------------------------------------------------------ button -->
+  <article class="entry">
+    <div class="entry__top"><h3>Button</h3><code>.btn</code>
+      <p class="entry__why">Four looks, one shape. The main action on a screen is
+        solid; everything else is outlined. Never two solid buttons in one view —
+        if two things look equally important, neither is.</p></div>
+    <div class="demo">
+      <p class="demo__lbl cap">Looks</p>
+      <button class="btn go">Send request</button>
+      <button class="btn">Save draft</button>
+      <button class="btn warn-btn">Turn down</button>
+      <button class="btn quiet">Cancel</button>
+    </div>
+    <div class="demo">
+      <p class="demo__lbl cap">States</p>
+      <button class="btn go">Normal</button>
+      <button class="btn go" disabled>Not available yet</button>
+      <button class="btn go" disabled aria-busy="true"><span class="spin"></span><span>Saving…</span></button>
+      <button class="btn" style="outline:2px solid var(--text);outline-offset:2px">Has focus</button>
+    </div>
+    <div class="demo">
+      <p class="demo__lbl cap">With an icon</p>
+      <button class="btn go" id="d-btn-1"></button>
+      <button class="btn" id="d-btn-2"></button>
+      <button class="btn quiet" id="d-btn-3" aria-label="Close"></button>
+    </div>
+    <div class="spec"><dl>
+      <dt>Padding</dt><dd><b>6px 14px</b>, gap 6px between icon and word. Small variant 3px 10px.</dd>
+      <dt class="only-web">Smallest size</dt><dd class="only-web"><b>32 × 32</b>. Icon-only buttons must meet it on both sides.</dd>
+      <dt class="only-mob">Smallest size</dt><dd class="only-mob"><b>44 × 44</b>. Full-width for the main action on a form.</dd>
+      <dt>On press</dt><dd>Scales to 97% for 120ms. Nothing else.</dd>
+      <dt>While working</dt><dd>Disabled, spinner replaces the icon, word becomes what is happening. <code>aria-busy</code> set so a screen reader knows.</dd>
+      <dt>Access</dt><dd>Icon-only needs <code>aria-label</code>. Focus ring is 2px, offset 2px, never removed.</dd>
+      <dt>For developers</dt><dd>Label lives on the element; the spinner swap restores it afterwards, so never rebuild the button to clear a loading state.</dd>
+    </dl></div>
+  </article>
+
+  <!-- -------------------------------------------------------------- chip -->
+  <article class="entry">
+    <div class="entry__top"><h3>Status chip</h3><code>.chip</code>
+      <p class="entry__why">Shows where something has got to. Always a word —
+        never a coloured dot on its own, which tells a colour-blind reader
+        nothing and tells everyone else nothing precise.</p></div>
+    <div class="demo">
+      <span class="chip">Draft</span>
+      <span class="chip note">Sent</span>
+      <span class="chip note">Seen by warehouse</span>
+      <span class="chip hold">Waiting for stock</span>
+      <span class="chip note">On the way</span>
+      <span class="chip good">Complete</span>
+      <span class="chip hold">Part delivered</span>
+      <span class="chip stop">Turned down</span>
+      <span class="chip solid">4 new</span>
+    </div>
+    <div class="spec"><dl>
+      <dt>Padding</dt><dd><b>2px 8px</b> on desktop, <b>3px 9px</b> on a phone.</dd>
+      <dt>Text</dt><dd>11px / 650 on desktop, 12px on a phone. Three words at most.</dd>
+      <dt>Tones</dt><dd>Neutral, note, hold, stop, good, solid. Tone repeats the word, never replaces it.</dd>
+      <dt>Access</dt><dd>Plain text, read normally. No role needed — it is not a control.</dd>
+      <dt>For developers</dt><dd>Status codes live in one list and are always shown through it. Never print a raw code.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ---------------------------------------------------------- ask/field -->
+  <article class="entry">
+    <div class="entry__top"><h3>Asking for something</h3><code>.ask</code>
+      <p class="entry__why">A label, the field, a hint, and — when it is wrong —
+        what to do about it. The whole point of this component is the wrong
+        state, because that is where people get stuck.</p></div>
+    <div class="demo stack">
+      <p class="demo__lbl cap">Normal, with a hint</p>
+      <div class="ask">
+        <label class="ask__label" for="ds-f1">How many kits<span aria-hidden="true"> *</span></label>
+        <input class="in" id="ds-f1" value="200" inputmode="numeric" aria-describedby="ds-f1-tip">
+        <p class="tip" id="ds-f1-tip">One kit feeds five people for a week</p>
+      </div>
+    </div>
+    <div class="demo stack">
+      <p class="demo__lbl cap">Wrong, and what to do</p>
+      <div class="ask bad">
+        <label class="ask__label" for="ds-f2">How many kits<span aria-hidden="true"> *</span></label>
+        <input class="in" id="ds-f2" value="0" aria-invalid="true" aria-describedby="ds-f2-err">
+        <p class="wrong" id="ds-f2-err"><span id="ds-warn-1"></span><span>Enter 1 or more. To cancel the request, use Cancel below.</span></p>
+      </div>
+    </div>
+    <div class="demo stack">
+      <p class="demo__lbl cap">Other kinds</p>
+      <div class="ask" style="max-width:300px">
+        <label class="ask__label" for="ds-f3">Which warehouse</label>
+        <select class="sel" id="ds-f3"><option>Ajman coastal depot — 98.5 km</option><option>RAK forward store — 14.2 km</option></select>
+      </div>
+      <div class="ask" style="max-width:200px">
+        <label class="ask__label" for="ds-f4">Boxes</label>
+        <div class="num-set"><button aria-label="One fewer" id="ds-m"></button><input id="ds-f4" value="12" aria-label="Boxes"><button aria-label="One more" id="ds-p"></button></div>
+      </div>
+      <div class="ask" style="max-width:260px">
+        <span class="ask__label">Confirm</span>
+        <div class="tick"><input type="checkbox" id="ds-f5" checked><label for="ds-f5"><span>All boxes accounted for</span><small>Tick only after counting</small></label></div>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Spacing</dt><dd>Label to field <b>5px</b>. Field to hint or problem <b>4–5px</b>. Between fields <b>16px</b>.</dd>
+      <dt class="only-web">Field height</dt><dd class="only-web"><b>32px</b>, text 13.5px.</dd>
+      <dt class="only-mob">Field height</dt><dd class="only-mob"><b>44px</b>, text <b>16px</b>. 16px matters: anything smaller makes the browser zoom the page when the field is focused.</dd>
+      <dt>Wrong state</dt><dd>Border goes to 2px, a short shake of 240ms, the problem appears below. Colour is never the only signal — there is an icon and a sentence.</dd>
+      <dt>Wording</dt><dd>Say what is wrong <em>and</em> what to do. “Enter 1 or more” beats “invalid quantity”.</dd>
+      <dt>Access</dt><dd>Label tied by <code>for</code>. Problem tied by <code>aria-describedby</code>. Field marked <code>aria-invalid</code>. Count of problems spoken on submit.</dd>
+      <dt>For developers</dt><dd>Never check on every keystroke. Check when the field is left, and again on submit. Never move focus to a field on its own.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------------ message -->
+  <article class="entry">
+    <div class="entry__top"><h3>Message in place</h3><code>.say</code>
+      <p class="entry__why">Something the person needs to know about the thing
+        they are looking at. Stays until it is dealt with. Carries the way out.</p></div>
+    <div class="demo stack">
+      <div class="say stop"><span id="ds-warn-2"></span><div style="flex:1 1 auto"><b>That did not save</b><p>The connection dropped before it saved. Nothing was changed.</p></div><div class="say__do"><button class="btn small">Try again</button></div></div>
+      <div class="say hold"><span id="ds-warn-3"></span><div style="flex:1 1 auto"><b>Not enough baby formula</b><p>60 tins here, 240 needed. 180 short. More is on order for 26 Aug.</p></div><div class="say__do"><button class="btn small">Send what there is</button></div></div>
+      <div class="say good"><span id="ds-tick-1"></span><div style="flex:1 1 auto"><b>Request sent</b><p>Beaumont coastal depot has it. You will get a message when someone picks it up.</p></div></div>
+      <div class="say note"><span id="ds-warn-4"></span><div style="flex:1 1 auto"><b>You are offline</b><p>This is saved on the phone and will send itself when there is signal.</p></div></div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Padding</dt><dd><b>12px 16px</b>, 4px coloured edge on the leading side, gap 12px.</dd>
+      <dt>Text</dt><dd>Headline 13px / 650. Detail 12.5px on desktop, 14px on a phone.</dd>
+      <dt>Arriving</dt><dd>Fades and rises over 200ms. Never steals focus.</dd>
+      <dt>Access</dt><dd>A stop message carries <code>role="alert"</code> so it is read at once. The others do not, so they do not interrupt.</dd>
+      <dt>For developers</dt><dd>Every stop message must offer a way out — a retry, an alternative, or a plain statement that nothing was lost.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------- brief message -->
+  <article class="entry">
+    <div class="entry__top"><h3>Brief message</h3><code>.note-card</code>
+      <p class="entry__why">Confirms something finished. Disappears on its own.
+        Only for things that worked, or small things that failed and need no
+        decision.</p></div>
+    <div class="demo">
+      <div class="note-card"><div style="flex:1 1 auto"><b>Request sent</b><span>Beaumont coastal depot</span></div><button class="note-card__x" id="ds-x-1" aria-label="Dismiss"></button></div>
+      <div class="note-card good"><div style="flex:1 1 auto"><b>Handover confirmed</b><span>All 200 boxes</span></div><button class="note-card__x" id="ds-x-2" aria-label="Dismiss"></button></div>
+      <div class="note-card stop"><div style="flex:1 1 auto"><b>Could not send</b><span>Saved here, will retry</span></div><button class="note-card__x" id="ds-x-3" aria-label="Dismiss"></button></div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Position</dt><dd>Bottom right on desktop. Bottom, above the tab bar, on a phone.</dd>
+      <dt>Time on screen</dt><dd><b>4.8 seconds</b>, or until dismissed. Never carries the only copy of information.</dd>
+      <dt>Access</dt><dd>The visible card is hidden from readers; the same words go to a polite live region instead, so nothing is announced twice.</dd>
+      <dt>For developers</dt><dd>Never use this for something that needs a decision. If there is a choice to make, use a message in place or a panel.</dd>
+    </dl></div>
+  </article>
+
+  <!-- --------------------------------------------------------------- list -->
+  <article class="entry">
+    <div class="entry__top"><h3>List</h3><code>.grid</code>
+      <p class="entry__why">Rows of things. On a narrow screen the rows stack and
+        each value grows its own label, so nothing ever scrolls sideways.</p></div>
+    <div class="demo stack">
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Item</th><th>Batch</th><th class="figs-col">On hand</th><th class="figs-col">Set aside</th><th>Use by</th></tr></thead>
+        <tbody>
+          <tr><td>Rice, 5 kg</td><td>A26-0107</td><td class="figs-col">900</td><td class="figs-col">200</td><td>30 Mar 2028</td></tr>
+          <tr><td>Baby formula, 400 g</td><td>A26-0156</td><td class="figs-col">60</td><td class="figs-col">60</td><td>30 Jun 2027</td></tr>
+          <tr><td>Drinking water, 5 L</td><td>A26-0149</td><td class="figs-col">3,600</td><td class="figs-col">1,200</td><td>25 Jul 2027</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Padding</dt><dd>Cells <b>9px 12px</b>. Header row 11px uppercase, 650.</dd>
+      <dt>Numbers</dt><dd>Right aligned, fixed-width figures, so columns of digits line up.</dd>
+      <dt>Below 560px</dt><dd>Rows become blocks. Each cell shows its column name from <code>data-label</code>. The header row is hidden.</dd>
+      <dt>Rows you can open</dt><dd>Whole row is the target, reachable by keyboard, opens on Enter or Space.</dd>
+      <dt>Access</dt><dd>A hidden caption says what the list is. Header cells carry <code>scope="col"</code>.</dd>
+      <dt>For developers</dt><dd>The stacking depends on the frame width, not the window width — so a narrow panel on a big screen behaves the same as a phone.</dd>
+    </dl></div>
+  </article>
+
+  <!-- --------------------------------------------------------- steps/meter -->
+  <article class="entry">
+    <div class="entry__top"><h3>Steps and progress</h3><code>.steps</code> <code>.meter</code>
+      <p class="entry__why">Where you are in something with several parts, and
+        how far along a job is.</p></div>
+    <div class="demo stack">
+      <ol class="steps">
+        <li class="was"><b>01</b><span>Which site</span></li>
+        <li class="now" aria-current="step"><b>02</b><span>What is needed</span></li>
+        <li><b>03</b><span>When by</span></li>
+        <li><b>04</b><span>Check and send</span></li>
+      </ol>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="meter" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100" aria-label="Distance covered"><i style="transform:scaleX(.62)"></i></div>
+        <span style="font-size:13px;color:var(--text-2)">61 km of 98.5 km · about 40 min left</span>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Steps</dt><dd>3px top edge, grey ahead, dark behind, solid at the current one. Never more than five steps.</dd>
+      <dt>Progress</dt><dd>6px tall. Scales rather than resizes, so the phone does no layout work.</dd>
+      <dt>Access</dt><dd>Current step marked <code>aria-current="step"</code>; finished steps say “done” to a reader. Progress uses <code>role="progressbar"</code> with a real label.</dd>
+      <dt>For developers</dt><dd>Always show the number alongside the bar. A bar on its own is not information.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ---------------------------------------------------------- empty/panel -->
+  <article class="entry">
+    <div class="entry__top"><h3>Nothing here yet</h3><code>.none</code>
+      <p class="entry__why">An empty list is a normal state, not a failure. Say
+        why it is empty and what would fill it.</p></div>
+    <div class="demo">
+      <div class="none"><b>No requests yet</b><p>When a site asks for supplies it will appear here. Nothing needs doing right now.</p><button class="btn go" style="margin-top:16px">Ask for supplies</button></div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Padding</dt><dd><b>32–48px</b>, dashed edge, centred.</dd>
+      <dt>Wording</dt><dd>Three parts: what is missing, why, and the one thing to do about it. Never “no data”.</dd>
+      <dt>For developers</dt><dd>Distinguish empty from failed from still-loading. Three different states, three different components.</dd>
+    </dl></div>
+  </article>
+</section>
+
+<section id="patterns">
+  <div class="shead"><b>08</b><h2>Patterns</h2></div>
+  <p>How components go together for the things this product does over and over.</p>
+
+  <h3>Ask, then confirm</h3>
+  <ol>
+    <li>Person fills in what they need. Nothing is checked while they type.</li>
+    <li>They press the main button. Everything is checked at once.</li>
+    <li>Anything wrong: the count is spoken, each field shows its own problem, focus stays where it is.</li>
+    <li>Nothing wrong: button shows a spinner and says what it is doing.</li>
+    <li>Worked: brief message, and the screen moves on.</li>
+    <li>Failed: message in place with a way out. Whatever they typed is still there.</li>
+  </ol>
+  <div class="callout"><b>The rule that matters</b>
+    <p>A failure must never lose what someone typed. Under pressure, retyping is
+       how a task gets abandoned.</p></div>
+
+  <h3>List, then detail</h3>
+  <ul>
+    <li>The list shows only what is needed to choose: name, status, when it is needed by, how much.</li>
+    <li>Opening a row keeps the list position, so going back does not lose the place.</li>
+    <li class="only-mob">On a phone the detail is a full screen with a back arrow, not a panel — panels are too small for the amount of detail here.</li>
+    <li class="only-web">On desktop the detail replaces the page and the breadcrumb shows the way back.</li>
+  </ul>
+
+  <h3>Several steps</h3>
+  <ul>
+    <li>Four steps at most. More than that, split the task.</li>
+    <li>Each step stands alone and can be returned to.</li>
+    <li>The last step shows everything back before it is sent.</li>
+    <li>Leaving part-way keeps a draft. It is never silently thrown away.</li>
+  </ul>
+
+  <h3>Working offline</h3>
+  <p>A driver loses signal constantly. The rule: <b>never block on the network</b>.</p>
+  <ul>
+    <li>The action is accepted, marked as waiting, and sent when signal returns.</li>
+    <li>The person is told plainly it is waiting, and how many things are waiting.</li>
+    <li>Nothing about it looks like a failure, because it is not one.</li>
+    <li>When it sends, a brief message confirms it. If it then fails, that is a real failure and gets a message in place.</li>
+  </ul>
+
+  <h3>Handing over between people</h3>
+  <p>The point of the whole product: one person's action becomes another
+     person's job. Every handover follows the same shape.</p>
+  <ol>
+    <li>The action changes something both people can see.</li>
+    <li>The other person gets a message — on the phone if it needs acting on now, in the app if not.</li>
+    <li>The record of what happened is written and cannot be edited.</li>
+    <li>The sender can see it was received. Silence is never the confirmation.</li>
+  </ol>
+</section>
+
+<section id="wrong">
+  <div class="shead"><b>09</b><h2>When things go wrong</h2></div>
+  <p>Seven failures, each one demonstrable on demand in the prototype, each with
+     a written way out. This is the part of the design that gets least attention
+     and matters most.</p>
+  <div class="tw"><table>
+    <thead><tr><th class="f">Name</th><th>What happened</th><th>What the person sees</th><th>The way out</th></tr></thead>
+    <tbody>
+      <tr><td class="f">MISSING</td><td>Something was not filled in</td><td>Each field shows its own problem; the count is spoken</td><td>Fix and send again. Nothing was sent, nothing was lost.</td></tr>
+      <tr><td class="f">TAKEN</td><td>Someone else set that stock aside first</td><td>Message in place naming what went and how much is left</td><td>Send what is left, or pick another warehouse. Both offered as buttons.</td></tr>
+      <tr><td class="f">SHORT</td><td>Not enough stock to cover the request</td><td>Exact numbers: what is here, what is needed, the gap, and when more arrives</td><td>Send part now and the rest later, or ask another warehouse.</td></tr>
+      <tr><td class="f">DROPPED</td><td>Connection went before it saved</td><td>Message in place saying nothing was changed</td><td>Try again. Everything typed is still on screen.</td></tr>
+      <tr><td class="f">OFFLINE</td><td>No signal at all</td><td>Told it is saved on the phone and will send itself</td><td>Nothing to do. It sends when signal returns.</td></tr>
+      <tr><td class="f">BARRED</td><td>This person is not allowed to do that</td><td>Plain statement, and who can do it</td><td>Hand it to the named person. Never a dead end.</td></tr>
+      <tr><td class="f">STALE</td><td>The screen is out of date</td><td>What changed underneath, and by whom</td><td>Reload and see the new state before saving.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="rules">
+    <div class="rule-card do"><b>Do</b><p>Name the thing. “Not enough baby formula — 60 here, 240 needed” beats “insufficient stock”.</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Blame the person. “That did not save” not “you failed to save”.</p></div>
+    <div class="rule-card do"><b>Do</b><p>Say what was <em>not</em> changed. Under pressure, the first question is always “did it half-work?”</p></div>
+    <div class="rule-card dont"><b>Do not</b><p>Offer a retry that will fail the same way. If it cannot work, say what will.</p></div>
+  </div>
+</section>
+
+<section id="access">
+  <div class="shead"><b>10</b><h2>Access record</h2></div>
+  <p>WCAG 2.2 AA on both, no exceptions. Not a promise — four checks that run
+     in the prototype and report numbers.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Check</th><th>What it looks at</th><th class="f">Run it</th></tr></thead>
+    <tbody>
+      <tr><td>Contrast, text size, touch size</td><td>Every colour pair used for text or an outline; every drawn text size; every touch target, both dimensions</td><td class="f">GN.A11Y.audit()</td></tr>
+      <tr><td>Words</td><td>Labels, statuses, menu items and failure messages against the banned list</td><td class="f">GN.CHECK.words()</td></tr>
+      <tr><td>Numbers</td><td>Every screen, for figures or units written in by hand instead of computed</td><td class="f">GN.CHECK.numbers()</td></tr>
+      <tr><td>Movement</td><td>Every animation length, what each one moves, and that “reduce motion” is honoured</td><td class="f">GN.CHECK.motion()</td></tr>
+      <tr><td>All four</td><td>Everything above, one number</td><td class="f">GN.CHECK.all()</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What is covered by hand</h3>
+  <ul>
+    <li>Keyboard only, start to finish, on every flow.</li>
+    <li>Focus never lost, never trapped, never hidden behind a sticky edge.</li>
+    <li>Dialogs: focus goes in, stays in, comes back to what opened them.</li>
+    <li>Announcements: anything that changes without being asked for reaches a screen reader once, not twice.</li>
+    <li>200% zoom and wider letter spacing, on both.</li>
+    <li>320px wide with no sideways scrolling.</li>
+  </ul>
+
+  <div class="callout good"><b>Found by the checks so far</b>
+    <p>Two grey values failing contrast on tinted backgrounds; an icon-only
+       button 33px wide against a 44px rule; a progress bar animating its width;
+       and a text colour used for labels that only ever passed on pure white.</p></div>
+</section>
+
+<section id="handover">
+  <div class="shead"><b>11</b><h2>Handover</h2></div>
+  <p>What a developer needs in order to build this for real.</p>
+
+  <h3>How the files are organised</h3>
+  <ul>
+    <li><code>Global_Nomad_UX.html</code> — the working prototype. Numbered sections, each depending only on lower numbers.</li>
+    <li><code>Global_Nomad_Design_System.html</code> — this file.</li>
+    <li><code>VERSION_HISTORY.md</code> — what changed, when, and by whom.</li>
+  </ul>
+
+  <h3>What is real and what is pretend</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Part</th><th>Real</th><th>Pretend</th></tr></thead>
+    <tbody>
+      <tr><td>Arithmetic</td><td>All of it — kit contents, stock set aside oldest-first, weights, vehicle limits, distances, times</td><td>—</td></tr>
+      <tr><td>Data</td><td>Shape and relationships</td><td>Every value. Invented.</td></tr>
+      <tr><td>Waiting and failing</td><td>The states, the wording, the way out</td><td>No network. One place fakes all of it.</td></tr>
+      <tr><td>Saving</td><td>Survives a refresh, shared between people</td><td>Browser storage, not a server.</td></tr>
+      <tr><td>Places</td><td>Formats, measures, dates, words, geography</td><td>All records invented.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The rules a build must keep</h3>
+  <ol>
+    <li><b>No figure typed into a screen.</b> Every number comes from the arithmetic layer. There is a check for it.</li>
+    <li><b>No unit typed into a screen.</b> Units come from the place layer.</li>
+    <li><b>Values stored metric</b>, converted only when shown.</li>
+    <li><b>Status codes stored, words shown.</b> Never print a raw code.</li>
+    <li><b>Nouns come from the word list</b>, so a new place needs no screen changes.</li>
+    <li><b>Only fading and moving.</b> Nothing that costs layout work.</li>
+    <li><b>Nothing blocks on the network</b> in the phone app.</li>
+  </ol>
+
+  <h3>Adding a place</h3>
+  <p>One entry in the place list, one optional entry in the word list. Record
+     identifiers are deliberately identical across places, so screens read
+     identifiers and the place supplies the content. No screen mentions a place
+     by name and none ever should.</p>
+
+  <h3>Still open</h3>
+  <ul>
+    <li>The full list of words per place — four settled, more to go.</li>
+    <li>Whether a driver sees the same nouns as an office.</li>
+    <li>Which of the seven failures each flow must demonstrate.</li>
+  </ul>
+</section>
+
+</div>
+</main>
+</div>
+
+<script>
+/* --------------------------------------------------------------------------
+   Fill in the live parts: contrast numbers computed here rather than copied,
+   the icon set drawn from the same shapes the prototype uses, the spacing
+   ladder, the movement table, and the banned-word list.
+   -------------------------------------------------------------------------- */
+
+/* icons inside demo buttons */
+document.getElementById('d-btn-1').innerHTML = svgIcon('save', 18) + '<span>Save draft</span>';
+document.getElementById('d-btn-2').innerHTML = svgIcon('refresh', 18) + '<span>Try again</span>';
+document.getElementById('d-btn-3').innerHTML = svgIcon('close', 18);
+['ds-warn-1','ds-warn-2','ds-warn-3','ds-warn-4'].forEach(function (id) {
+  var n = document.getElementById(id); if (n) n.innerHTML = svgIcon('warn', 16);
+});
+document.getElementById('ds-tick-1').innerHTML = svgIcon('tick', 16);
+['ds-x-1','ds-x-2','ds-x-3'].forEach(function (id) {
+  document.getElementById(id).innerHTML = svgIcon('close', 15);
+});
+document.getElementById('ds-m').innerHTML = svgIcon('minus', 16);
+document.getElementById('ds-p').innerHTML = svgIcon('plus', 16);
+
+/* the whole icon set */
+(function () {
+  var wall = document.getElementById('iconwall');
+  Object.keys(ICONS).forEach(function (name) {
+    var cell = document.createElement('div');
+    cell.className = 'iconcell';
+    cell.innerHTML = svgIcon(name, 26) + '<span>' + name + '</span>';
+    wall.appendChild(cell);
+  });
+})();
+
+/* spacing ladder, drawn to scale */
+(function () {
+  var host = document.getElementById('ruler');
+  [4, 8, 12, 16, 24, 32, 48].forEach(function (n) {
+    var d = document.createElement('div');
+    d.innerHTML = '<i style="width:' + n + 'px;height:' + Math.max(n, 8) + 'px"></i><span>' + n + '</span>';
+    host.appendChild(d);
+  });
+})();
+
+/* greys, with contrast measured live */
+(function () {
+  var rows = [
+    ['--bg',        'Behind everything'],
+    ['--paper',     'Cards, fields, the app itself'],
+    ['--paper-2',   'Quiet fill, side list, table headers'],
+    ['--paper-3',   'Stronger fill, the control bar'],
+    ['--rule',      'Dividers only — not for anything you touch'],
+    ['--rule-soft', 'Hairlines inside a card'],
+    ['--edge',      'The outline of anything you can touch'],
+    ['--text',      'Main text'],
+    ['--text-2',    'Second-level text'],
+    ['--text-3',    'Smallest text allowed'],
+    ['--ghost',     'Decoration only — never text'],
+    ['--solid',     'Main button, current item'],
+    ['--good',      'Finished, confirmed'],
+    ['--hold',      'Waiting, part done'],
+    ['--stop',      'Failed, turned down'],
+    ['--note',      'In progress, informational']
+  ];
+  var white = '#FFFFFF';
+  var host = document.getElementById('grey-rows');
+  rows.forEach(function (r) {
+    var v = tokenValue(r[0]);
+    var c = ratio(v, white);
+    var isText = /text|solid|good|hold|stop|note|ghost/.test(r[0]);
+    var need = isText ? 4.5 : 3.0;
+    var verdict = r[0] === '--ghost'
+      ? '<span class="fail">' + c + '</span> — fails, decoration only'
+      : (r[0] === '--rule' || r[0] === '--rule-soft' || r[0] === '--bg' ||
+         r[0] === '--paper' || r[0] === '--paper-2' || r[0] === '--paper-3'
+          ? c + ' — not used for text'
+          : '<span class="' + (c >= need ? 'pass' : 'fail') + '">' + c + '</span>' +
+            (c >= need ? ' ✓' : ' needs ' + need));
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="f">' + r[0] + '</td>' +
+      '<td><span class="swatch"><i style="background:' + v + '"></i></span></td>' +
+      '<td class="f">' + v + '</td><td>' + r[1] + '</td><td class="f">' + verdict + '</td>';
+    host.appendChild(tr);
+  });
+})();
+
+/* the movement set */
+(function () {
+  var set = [
+    ['tap',    '120ms', 'Button press, switch flipping',                 'Scale to 97%'],
+    ['arrive', '200ms', 'Something appears you did not ask for',          'Fade in and rise 8px'],
+    ['panel',  '240ms', 'A panel or sheet opening',                      'Fade in and rise; sheets rise 24px'],
+    ['page',   '280ms', 'Moving between screens',                        'Fade in and slide 10px'],
+    ['leave',  '160ms', 'Something closing',                             'Fade out']
+  ];
+  var host = document.getElementById('motion-rows');
+  set.forEach(function (m) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="f">' + m[0] + '</td><td class="f">' + m[1] + '</td><td>' + m[2] + '</td><td>' + m[3] + '</td>';
+    host.appendChild(tr);
+  });
+})();
+
+/* words we do not use */
+(function () {
+  var banned = ['requirement','allocate','allocation','dispatch','procurement','entity','scope',
+    'validate','invalid','SLA','POD','inventory','fulfil','fulfilment','consignment','consignee',
+    'SKU','payload','endpoint','persona','breach','instantiate','leverage','utilise','onboard',
+    'onboarding','stakeholder','synergy','granular','robust','seamless','ecosystem','paradigm',
+    'asset','resource','subsystem','config','parameter','initiate'];
+  var host = document.getElementById('banned-list');
+  var perRow = 6;
+  for (var i = 0; i < banned.length; i += perRow) {
+    var tr = document.createElement('tr');
+    var cells = banned.slice(i, i + perRow).map(function (w) { return '<td class="f">' + w + '</td>'; });
+    while (cells.length < perRow) cells.push('<td></td>');
+    tr.innerHTML = cells.join('');
+    host.appendChild(tr);
+  }
+})();
+
+/* Desktop / Phone switch — the entry point for the whole file */
+(function () {
+  var web = document.getElementById('pick-web'), mob = document.getElementById('pick-mob');
+  var note = document.getElementById('face-note');
+  function set(face) {
+    document.body.setAttribute('data-face', face);
+    web.setAttribute('aria-pressed', String(face === 'web'));
+    mob.setAttribute('aria-pressed', String(face === 'mob'));
+    note.textContent = face === 'mob'
+      ? 'Phone sizes: body 17px, smallest text 13px, touch targets 44px'
+      : 'Desktop sizes: body 14px, smallest text 12px, click targets 24px';
+    try { localStorage.setItem('gn-ds-face', face); } catch (e) {}
+  }
+  web.addEventListener('click', function () { set('web'); });
+  mob.addEventListener('click', function () { set('mob'); });
+  var saved = 'web';
+  try { saved = localStorage.getItem('gn-ds-face') || 'web'; } catch (e) {}
+  set(saved);
+})();
+
+console.log('%c Global Nomad — design system ', 'background:#2C3135;color:#fff;font-weight:600');
+console.log('Icons drawn: ' + Object.keys(ICONS).length + '. Contrast numbers on this page are computed live.');
+</script>
+</body>
+</html>
