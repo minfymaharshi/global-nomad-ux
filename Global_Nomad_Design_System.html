@@ -493,7 +493,9 @@ table.grid tbody tr:last-child td { border-bottom:0; }
         <tr><td>Body</td><td class="f">14px</td><td class="f">400</td><td>65–75 characters a line</td></tr>
         <tr><td>Field label</td><td class="f">12.5px</td><td class="f">650</td><td></td></tr>
         <tr><td>Supporting text</td><td class="f">12px</td><td class="f">400</td><td>Smallest allowed</td></tr>
-        <tr><td>Small caps label</td><td class="f">11px</td><td class="f">600</td><td>Never more than four words</td></tr>
+        <tr><td>Small caps label</td><td class="f">12px</td><td class="f">600</td><td>Never more than four words</td></tr>
+        <tr><td>Status chip</td><td class="f">12px</td><td class="f">650</td><td>Three words at most</td></tr>
+        <tr><td>Table column head</td><td class="f">12px</td><td class="f">650</td><td>Small caps</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -510,6 +512,8 @@ table.grid tbody tr:last-child td { border-bottom:0; }
         <tr><td>Field text</td><td class="f">16px</td><td class="f">400</td><td>16px stops the browser zooming on focus</td></tr>
         <tr><td>Big number</td><td class="f">22px</td><td class="f">650</td><td>Fixed-width figures</td></tr>
         <tr><td>Supporting text</td><td class="f">13px</td><td class="f">400</td><td>Smallest allowed</td></tr>
+        <tr><td>Status chip</td><td class="f">13px</td><td class="f">650</td><td></td></tr>
+        <tr><td>Small caps label</td><td class="f">13px</td><td class="f">600</td><td>Everything meets the floor, no exceptions</td></tr>
       </tbody>
     </table></div>
     <div class="callout"><b>Never below 13px on a phone</b>
@@ -523,7 +527,21 @@ table.grid tbody tr:last-child td { border-bottom:0; }
     <li>No long stretches of capitals — four words at most.</li>
     <li>Everything must survive 200% zoom and wider letter spacing without breaking.</li>
     <li>Only two weights: 400 for reading, 650 for headings and labels.</li>
+    <li><b>Never set a size inline.</b> An inline size cannot be raised by the
+        phone floor, so anything written straight onto an element quietly stays
+        at its desktop size on a phone. Use a class.</li>
+    <li><b>No exceptions to the floor.</b> Small caps used to sit at 11px on the
+        argument that capitals read larger. They now meet the floor like
+        everything else — an exception is an argument waiting to happen.</li>
   </ul>
+
+  <div class="callout good">
+    <b>Found by the check</b>
+    <p>Fourteen places sat below the floor, including every status chip, every
+       table heading and the step numbers. Three more were inline sizes that
+       looked right on a desktop and stayed too small on a phone. None of it was
+       visible by eye — it took measuring the drawn page.</p>
+  </div>
 </section>
 
 <section id="space">

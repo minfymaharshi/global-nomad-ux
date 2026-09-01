@@ -9,6 +9,7 @@ the product*, not which lines moved.
 
 | When | Who | File | What changed |
 |---|---|---|---|
+| 2026-09-01 11:45 IST | Maharshi Gautam, with Claude | `Global_Nomad_UX.html`, `Global_Nomad_Design_System.html` | **Text sizes brought up to the floor.** Fourteen places sat under the 12px desktop / 13px phone minimum — every status chip, every table heading, the step numbers, sidebar detail lines and badges. Three more were inline sizes that looked right on a desktop and silently stayed too small on a phone; those are now classes. The small-caps exception at 11px is gone. The size check now measures the demo bar as well as the product, and skips anything marked decoration. |
 | 2026-08-31 13:24 IST | Maharshi Gautam, with Claude | `Global_Nomad_UX.html` | **New file, built clean.** Plain-language pass across every label. Two places (UAE, US) driven by data so more can be added. Real arithmetic layer — no figure typed into a screen. Simulated waiting and failing with seven named failure modes. Real motion, five movements, all switchable off. Control bar: place, person, view, phone model, words, movement, and a collapse. Seven Android sizes plus rotate. WCAG 2.2 AA with four automated checks. |
 | 2026-08-31 13:24 IST | Maharshi Gautam, with Claude | `Global_Nomad_Design_System.html` | **New file.** Desktop/Phone entry switch. Words, type, spacing, greys with live-measured contrast, 24 drawn icons, movement set, 8 component entries with states and handover notes, patterns, the seven failure modes with recovery paths, access record, developer handover. |
 | 2026-08-31 13:24 IST | Maharshi Gautam, with Claude | `VERSION_HISTORY.md`, `README.md` | Added, so history and setup are recorded in the repo rather than in chat. |
@@ -17,6 +18,7 @@ the product*, not which lines moved.
 
 | When | File | What was wrong |
 |---|---|---|
+| 2026-09-01 11:45 IST | `Global_Nomad_UX.html` | Inline font sizes bypassed the phone floor entirely — a size written onto an element cannot be raised by a later rule. Caught only by measuring the drawn page, not by reading the code. |
 | 2026-08-31 13:24 IST | `Global_Nomad_UX.html` | The word-check function shadowed the token helper of the same name and would have recursed until the stack overflowed. |
 | 2026-08-31 13:24 IST | `Global_Nomad_UX.html` | Two menu labels were fixed English instead of place words, so they would not have switched between "Relief camps" and "Shelters". |
 | 2026-08-31 13:24 IST | `Global_Nomad_UX.html` | The progress bar animated its width, which makes a cheap phone redo layout every frame. Now scales instead. |
