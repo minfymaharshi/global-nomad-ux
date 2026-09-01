@@ -370,6 +370,7 @@ table.grid tbody tr:last-child td { border-bottom:0; }
     <a href="#patterns"><b>08</b><span>Patterns</span></a>
     <a href="#wrong"><b>09</b><span>When things go wrong</span></a>
     <a href="#access"><b>10</b><span>Access record</span></a>
+    <a href="#impact"><b>10b</b><span>Who a change affects</span></a>
     <a href="#handover"><b>11</b><span>Handover</span></a>
   </nav>
 </aside>
@@ -673,6 +674,27 @@ table.grid tbody tr:last-child td { border-bottom:0; }
      developer needs to know. Where a phone differs from a desktop, both are
      given.</p>
 
+  <!-- --------------------------------------------------------- side list -->
+  <article class="entry">
+    <div class="entry__top"><h3>Side list</h3><code>.side</code>
+      <p class="entry__why">How someone moves around. Grouped under headings so a
+        long list stays readable, and foldable to icons when the screen is
+        needed for the work rather than the navigating. The bell and the
+        person's name sit in a block at the bottom, out of the list — you
+        navigate to pages, you glance at alerts.</p></div>
+    <div class="spec"><dl>
+      <dt>Width</dt><dd>Open <b>220px</b>. Folded <b>60px</b>.</dd>
+      <dt>Item</dt><dd><b>36px</b> tall, icon and label with a <b>12px</b> gap, padding <b>6px 10px</b>.</dd>
+      <dt class="only-mob">On a phone</dt><dd class="only-mob">There is no side list. It becomes a sheet reached from the header, and the four main pages sit in a bottom bar with <b>44px</b> targets.</dd>
+      <dt>Groups</dt><dd>A heading in small caps, then its items. A hairline between groups, never a heavy rule.</dd>
+      <dt>Current page</dt><dd>Boxed: white fill, a 1px edge, and the label goes to 650. Three signals, so it does not depend on one.</dd>
+      <dt>Folding</dt><dd><b>No animation.</b> Animating a width makes the browser redo layout every frame. It snaps, and the movement check enforces that.</dd>
+      <dt>Folded labels</dt><dd>Each icon keeps its label for a screen reader and as a hover tooltip. An icon alone is never the only clue.</dd>
+      <dt>Access</dt><dd>A real <code>&lt;nav&gt;</code> with a name. Current item marked <code>aria-current="page"</code>. The fold button reports <code>aria-expanded</code>. Unread counts read as “Alerts, 2 unread”, not “2”.</dd>
+      <dt>For developers</dt><dd>The bell borrows the item's look but not its full width — it is sized on its own. Letting it inherit <code>width:100%</code> squashed the name beside it to 8px, which no colour or size check would have caught.</dd>
+    </dl></div>
+  </article>
+
   <!-- ------------------------------------------------------------ button -->
   <article class="entry">
     <div class="entry__top"><h3>Button</h3><code>.btn</code>
@@ -931,6 +953,21 @@ table.grid tbody tr:last-child td { border-bottom:0; }
     <li>When it sends, a brief message confirms it. If it then fails, that is a real failure and gets a message in place.</li>
   </ul>
 
+  <h3>Nothing is ever deleted</h3>
+  <p>There is no delete anywhere in this product. Removing something archives
+     it, and the Archived page brings it back.</p>
+  <ul>
+    <li>Every record carries who archived it, when, and why. The reason is asked for, not optional.</li>
+    <li>Lists show live records only. The Archived page shows the rest.</li>
+    <li>Bringing something back is written into what happened, the same as archiving it.</li>
+    <li>Whole people-views can go out of sight too, and come back the same way. They are listed with a reason and a date.</li>
+    <li>A page that no side list points at is <b>registered</b>, not orphaned — otherwise it is lost without anyone deciding to lose it.</li>
+  </ul>
+  <div class="callout"><b>Why it is worth the trouble</b>
+    <p>In an emergency, someone will archive the wrong warehouse at two in the
+       morning. The cost of a wrong delete is unrecoverable work; the cost of a
+       wrong archive is one click.</p></div>
+
   <h3>Handing over between people</h3>
   <p>The point of the whole product: one person's action becomes another
      person's job. Every handover follows the same shape.</p>
@@ -979,6 +1016,8 @@ table.grid tbody tr:last-child td { border-bottom:0; }
       <tr><td>Words</td><td>Labels, statuses, menu items and failure messages against the banned list</td><td class="f">GN.CHECK.words()</td></tr>
       <tr><td>Numbers</td><td>Every screen, for figures or units written in by hand instead of computed</td><td class="f">GN.CHECK.numbers()</td></tr>
       <tr><td>Movement</td><td>Every animation length, what each one moves, and that “reduce motion” is honoured</td><td class="f">GN.CHECK.motion()</td></tr>
+      <tr><td>Links</td><td>Every side-list item leads somewhere, and every page is either reachable or recorded as out of sight</td><td class="f">GN.CHECK.pages()</td></tr>
+      <tr><td>Sticking out</td><td>Anything extending past the app frame — how a squashed layout shows up, invisible to every other check</td><td class="f">part of GN.A11Y.audit()</td></tr>
       <tr><td>All four</td><td>Everything above, one number</td><td class="f">GN.CHECK.all()</td></tr>
     </tbody>
   </table></div>
@@ -994,9 +1033,34 @@ table.grid tbody tr:last-child td { border-bottom:0; }
   </ul>
 
   <div class="callout good"><b>Found by the checks so far</b>
-    <p>Two grey values failing contrast on tinted backgrounds; an icon-only
-       button 33px wide against a 44px rule; a progress bar animating its width;
-       and a text colour used for labels that only ever passed on pure white.</p></div>
+    <p>Two grey values failing contrast on tinted backgrounds. An icon-only
+       button 33px wide against a 44px rule. A progress bar animating its width,
+       and later the side list animating its own. Fourteen text sizes under the
+       floor, three of them inline and therefore invisible on a phone. Three
+       side-list items pointing at pages that did not exist, and four pages
+       nobody could reach. A bell inheriting a full-width rule and crushing the
+       name beside it to 8px.</p></div>
+</section>
+
+<section id="impact">
+  <div class="shead"><b>10b</b><h2>Who a change affects</h2></div>
+  <p>Every change is meant to be checked across everyone who uses the product.
+     Remembering to do that does not scale, so it is worked out instead.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Question</th><th class="f">Ask it</th></tr></thead>
+    <tbody>
+      <tr><td>If I change how warehouses work, who and what does that touch?</td><td class="f">GN.IMPACT.of('stores')</td></tr>
+      <tr><td>If I change this page, what does it read and who sees it?</td><td class="f">GN.IMPACT.ofPage('disasters')</td></tr>
+      <tr><td>Show me everything at once</td><td class="f">GN.IMPACT.all()</td></tr>
+    </tbody>
+  </table></div>
+  <p>The answer names the people in use, the pages, whether a phone is involved,
+     and — importantly — the people currently <em>out of sight</em> who would
+     also be affected when they come back. That last part is the one a person
+     doing this from memory always misses.</p>
+  <p>It works because each record kind declares which pages read it, in one
+     place. Add a page that reads a kind, add it to that list in the same pass.
+     The link check fails if a side list points at nothing.</p>
 </section>
 
 <section id="handover">
@@ -1099,7 +1163,8 @@ document.getElementById('ds-p').innerHTML = svgIcon('plus', 16);
     ['--bg',        'Behind everything'],
     ['--paper',     'Cards, fields, the app itself'],
     ['--paper-2',   'Quiet fill, side list, table headers'],
-    ['--paper-3',   'Stronger fill, the control bar'],
+    ['--paper-3',   'Stronger fill inside the product'],
+    ['--bar',       'The demo bar — its own step, so it reads as a separate layer'],
     ['--rule',      'Dividers only — not for anything you touch'],
     ['--rule-soft', 'Hairlines inside a card'],
     ['--edge',      'The outline of anything you can touch'],
