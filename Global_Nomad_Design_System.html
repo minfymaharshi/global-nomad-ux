@@ -300,7 +300,7 @@ body[data-face="mob"] .demo .in, body[data-face="mob"] .demo .sel { min-height:v
   font-variant-numeric:tabular-nums; font-size:14px; }
 body[data-face="mob"] .demo .num-set button { min-width:var(--tap-mob); min-height:var(--tap-mob); }
 .tick { display:flex; gap:var(--sp2); align-items:flex-start; min-height:var(--tap); }
-.tick input { margin:3px 0 0; width:18px; height:18px; }
+.tick input { margin:3px 0 0; width:18px; height:18px; accent-color:var(--solid); }
 .tick small { display:block; color:var(--text-3); font-size:12px; }
 
 .say { display:flex; gap:var(--sp3); align-items:flex-start; flex-wrap:wrap;
@@ -1138,6 +1138,34 @@ body[data-face="mob"] .d-foot { font-size:13px; }
       <dt>A failed submit</dt><dd>Rebuilds only the one field's label-and-message wrapper — <code>nameWrap.replaceWith(freshWrap)</code> — not the whole panel. The typed value stays exactly as typed, in the same input node, and focus returns to it. <code>aria-invalid</code> is set on the field itself, not only implied by red text.</dd>
       <dt>For developers</dt><dd>Every new record is stamped the same way seed data is — <code>addedBy</code>, <code>addedByOrg</code>, <code>fromCatalogue</code>, plus the full archive family (<code>archived: false</code> and its three companions) — set directly rather than through the internal <code>stamp()</code> helper, which is not exposed outside <code>Store</code>.</dd>
       <dt>For developers — the history line has to be inside the write</dt><dd><code>Store.note()</code> only ever mutates <code>now.history</code> in memory — nothing about it persists or notifies. Called inside the same <code>Store.change(fn)</code> that mutates the record, the wrapper's own <code>write()</code>+<code>tell()</code> covers both at once. Called standalone after that block instead, the screen still redraws correctly — it reads the same in-memory object either way — which is exactly what hides the mistake until a reload silently drops the history line. Caught here before it shipped; see <code>VERSION_HISTORY.md</code>.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------------ two-step wizard -->
+  <article class="entry">
+    <div class="entry__top"><h3>Two-step wizard</h3><code>steps()</code>
+      <p class="entry__why">Add a disaster: which type, and where, then who is
+        involved. Two steps in one panel, refreshed in place rather than
+        closed and reopened, so nothing already typed is ever lost moving
+        between them.</p></div>
+    <div class="demo stack">
+      <ol class="steps">
+        <li class="was"><b>01</b><span>Which type, and where<span class="vh"> — done</span></span></li>
+        <li class="now" aria-current="step"><b>02</b><span>Who is involved</span></li>
+      </ol>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+        <div class="tick"><input type="checkbox" id="wztick1" checked><label for="wztick1">Beaumont coastal depot — Texas<small>1,600 pallets · Platform</small></label></div>
+        <div class="tick"><input type="checkbox" id="wztick2"><label for="wztick2">Lafayette forward store — Louisiana<small>180 pallets · Relief org</small></label></div>
+      </div>
+      <p class="tip" style="margin-top:10px">Comes in automatically: Beaumont depot fleet, Delta Haulage, Luis Obando (volunteer)</p>
+    </div>
+    <div class="spec"><dl>
+      <dt>One record, two doors, one form</dt><dd>The exact same wizard opens blank from "Add disaster" or pre-filled from a card's Edit. Editing an existing disaster can change everything a new one can — name, type, location, every tag — because there has only ever been one place that knows how to build one.</dd>
+      <dt>Type: pick one, or add one</dt><dd>Chips, not a dropdown, because there are usually five or fewer and a glance should be enough. Adding a type writes it into this place's own list for real — <code>Store.s.disasterTypes</code>, not the constant it started from — so it shows up as a genuine option in the Disasters list's Type filter afterward, not just for the rest of this session.</dd>
+      <dt>A warehouse's fleet rides along</dt><dd>Tick a warehouse in step 2 and its fleet — and any volunteer based there — appears under "Comes in automatically" before the panel is even submitted. Unticking it removes them just as immediately. Nothing about this needs the whole panel, or even the whole step, rebuilt: only the fleet section's own container is emptied and redrawn, so the warehouse checkboxes above it are never touched by their own side effect.</dd>
+      <dt>Automatic and manual never overlap</dt><dd>A fleet or volunteer riding in via a ticked warehouse does not also appear in the manual "add others" list — it would be the same inclusion counted, and offered to be unticked, twice. The moment its warehouse is unticked, it reappears there as a real choice.</dd>
+      <dt>What a tick actually writes</dt><dd>Only what was ticked by hand. A fleet included automatically is never written to its own <code>disasters</code> field — the relationship is computed fresh every time from which warehouses are tagged, the same way the Organisations count on a card is computed, not stored twice.</dd>
+      <dt>For developers</dt><dd>Every field is read from the live DOM at submit — nothing is mirrored into a parallel state object except where a value has to survive a full step rebuild (name, type, the tag arrays). <code>refresh()</code> replaces the panel's own <code>.panel__mid</code> and <code>.panel__end</code> in place; the panel itself is never closed and reopened between steps, so <code>U.panel()</code>'s focus trap only ever engages once per wizard, not once per step.</dd>
     </dl></div>
   </article>
 </section>

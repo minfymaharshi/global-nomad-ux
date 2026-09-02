@@ -592,7 +592,13 @@ h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2
 .kit-in.hand .num-set input { width: 72px; font-size: 17px; }
 
 .tick { display: flex; gap: var(--sp2); align-items: flex-start; padding: 6px 0; min-height: var(--tap); }
-.tick input { margin: 3px 0 0; width: 18px; height: 18px; }
+/* built long before it was first actually used — a warehouse's Chilled
+   toggle, then the wizard's tag lists. Untouched, a checkbox renders in the
+   browser's native blue, which is exactly the stray colour the wireframe
+   rule forbids: greys only until a look is agreed, and colour never carries
+   meaning alone. accent-color keeps native behaviour and keyboard handling,
+   just recoloured. */
+.tick input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: var(--solid); }
 .tick span { font-size: 13px; }
 .tick small { display: block; color: var(--text-3); font-size: 12px; }
 .kit-in.hand .tick { min-height: var(--tap-mob); }
@@ -853,6 +859,14 @@ function disasterStatusWord(code) { return DISASTER_STATUS[code] || code; }
 /* Fixed for now — the same list the Add-disaster wizard's type picker will
    read from, so a type added there shows up as a real filter option here. */
 var DISASTER_TYPES = ['Hurricane', 'Flood', 'Wildfire', 'Tornado', 'Winter storm'];
+/* the base list, plus whatever has been added for real in this place — a
+   type someone adds in the wizard becomes a real, permanent filter option,
+   so it has to live in Store state, not just this constant. */
+function liveDisasterTypes() {
+  var extra = (Store.s && Store.s.disasterTypes) || DISASTER_TYPES;
+  return extra.length ? extra : DISASTER_TYPES;
+}
+var DISASTER_PEOPLE_DEFAULT = 1000, DISASTER_PEOPLE_MAX = 1000000, DISASTER_PEOPLE_STEP = 100;
 
 
 /* ==============================================================================
@@ -1287,6 +1301,9 @@ var Store = (function () {
       orgs: w.orgs, people: w.people, disasters: w.disasters, sites: w.sites,
       stores: w.stores, items: w.items, kits: w.kits, vehicles: w.vehicles,
       drivers: w.drivers, fleets: fleets, lots: stamp(makeStock(place.id), PLATFORM_PERSON, PLATFORM_ORG, true),
+      /* a copy, not the constant itself — adding a type in the wizard grows
+         this list for real, so it has to be this place's own data */
+      disasterTypes: DISASTER_TYPES.slice(),
       /* built up as journeys are played */
       requests: [], requestLines: [], holds: [],
       deliveries: [], stops: [], loadLines: [],
@@ -2595,9 +2612,220 @@ addScreen('disasters', 'Disasters', function (c) {
     c.again();
   }
 
-  function editDisaster(d) {
-    U.brief('Not built yet', 'Editing opens the same flow as adding one — next.', 'note');
+  /* Two steps, one panel, refreshed in place rather than closed and
+     reopened — Next/Previous, adding a custom type, and ticking a warehouse
+     all rebuild only the part of the form that actually changed. Edit opens
+     the exact same flow, pre-filled, so there is only ever one place that
+     knows how to build or change a disaster. */
+  function openDisasterWizard(existing) {
+    var draft = existing ? {
+      name: existing.name, type: existing.kind, zone: existing.zone,
+      peopleAffected: existing.peopleAffected,
+      storeIds: storesFor(existing).map(function (s) { return s.id; }),
+      orgIds: orgIdsFor(existing),
+      fleetIds: Store.live('fleets', function (f) { return (f.disasters || []).indexOf(existing.id) > -1; }).map(function (f) { return f.id; }),
+      volunteerIds: Store.live('drivers', function (dr) { return dr.volunteer && (dr.disasters || []).indexOf(existing.id) > -1; }).map(function (dr) { return dr.id; })
+    } : {
+      name: '', type: liveDisasterTypes()[0], zone: region.areaList[0], peopleAffected: DISASTER_PEOPLE_DEFAULT,
+      storeIds: [], orgIds: [], fleetIds: [], volunteerIds: []
+    };
+    var step = 1, nameError = null;
+    var fleetSectionEl = U.el('div', {}, []);
+
+    function autoFleetNames() {
+      var names = Store.live('fleets', function (f) { return draft.storeIds.indexOf(f.store) > -1; })
+        .map(function (f) { return f.name; });
+      var vols = Store.live('drivers', function (dr) { return dr.volunteer && draft.storeIds.indexOf(dr.store) > -1; })
+        .map(function (dr) { return dr.name + ' (volunteer)'; });
+      return names.concat(vols);
+    }
+    function buildFleetSection() {
+      var autoNames = autoFleetNames();
+      var otherFleets = Store.live('fleets', function (f) { return draft.storeIds.indexOf(f.store) < 0; })
+        .map(function (f) {
+          var checked = draft.fleetIds.indexOf(f.id) > -1;
+          return U.tick({ on: checked, label: f.name, tip: STORE_RUNBY_WORD[f.runBy] || f.runBy,
+            onSet: function (e) {
+              if (e.target.checked) draft.fleetIds.push(f.id);
+              else draft.fleetIds = draft.fleetIds.filter(function (x) { return x !== f.id; });
+            } });
+        });
+      var otherVols = Store.live('drivers', function (dr) { return dr.volunteer && draft.storeIds.indexOf(dr.store) < 0; })
+        .map(function (dr) {
+          var checked = draft.volunteerIds.indexOf(dr.id) > -1;
+          return U.tick({ on: checked, label: dr.name + ' (volunteer)',
+            onSet: function (e) {
+              if (e.target.checked) draft.volunteerIds.push(dr.id);
+              else draft.volunteerIds = draft.volunteerIds.filter(function (x) { return x !== dr.id; });
+            } });
+        });
+      var kids = [ U.el('p', { class: 'tip', text: autoNames.length
+        ? 'Comes in automatically: ' + autoNames.join(', ')
+        : 'Nothing comes in automatically yet — tag a ' + t('store') + ' above, or add one below.' }) ];
+      var manual = otherFleets.concat(otherVols);
+      if (manual.length) kids.push(U.el('div', { style: 'display:flex;flex-direction:column;gap:6px;margin-top:10px' }, manual));
+      return kids;
+    }
+    function refreshFleetSection() {
+      U.empty(fleetSectionEl);
+      buildFleetSection().forEach(function (n) { fleetSectionEl.appendChild(n); });
+    }
+
+    function buildStep1() {
+      var nameField = U.line({ value: draft.name, hint: 'e.g. Hurricane Marisol' });
+      nameField.addEventListener('input', function () { draft.name = nameField.value; });
+      var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError });
+
+      var typeChips = U.el('div', { class: 'line wrap', style: 'gap:8px' },
+        liveDisasterTypes().map(function (k) {
+          return U.el('button', { type: 'button', class: 'chip' + (k === draft.type ? ' solid' : ''),
+            'aria-pressed': String(k === draft.type), onclick: function () { draft.type = k; refresh(); } }, [k]);
+        }));
+      var newTypeField = U.line({ hint: 'Add a type' });
+      var addType = U.btn('Add', { size: 'small', onTap: function () {
+        var v = newTypeField.value.trim();
+        if (!v) return;
+        var match = liveDisasterTypes().filter(function (k) { return k.toLowerCase() === v.toLowerCase(); })[0];
+        if (!match) Store.change(function (now) { now.disasterTypes.push(v); });
+        draft.type = match || v;
+        refresh();
+      } });
+
+      var zoneField = U.choose({ value: draft.zone, options: region.areaList.map(function (z) { return { value: z, label: z }; }) });
+      zoneField.addEventListener('change', function () { draft.zone = zoneField.value; });
+
+      var peopleField = U.howMany({ value: draft.peopleAffected, low: 0, high: DISASTER_PEOPLE_MAX,
+        step: DISASTER_PEOPLE_STEP, spoken: 'People affected, an estimate' });
+
+      return U.el('div', { style: 'display:flex;flex-direction:column;gap:16px' }, [
+        nameWrap,
+        U.el('div', {}, [
+          U.el('label', { class: 'ask__label', style: 'display:block;margin-bottom:8px', text: 'Type' }),
+          typeChips,
+          U.el('div', { class: 'line', style: 'margin-top:10px;gap:8px;align-items:flex-end' }, [ newTypeField, addType ])
+        ]),
+        U.ask({ label: T('area'), field: zoneField }),
+        U.ask({ label: 'People affected, an estimate', field: peopleField })
+      ]);
+    }
+
+    function buildStep2() {
+      var storeRows = Store.live('stores').map(function (st) {
+        var checked = draft.storeIds.indexOf(st.id) > -1;
+        return U.tick({ on: checked, label: st.name + ' — ' + st.area,
+          tip: FMT.count(st.pallets) + ' pallets · ' + (STORE_RUNBY_WORD[st.runBy] || st.runBy),
+          onSet: function (e) {
+            if (e.target.checked) draft.storeIds.push(st.id);
+            else draft.storeIds = draft.storeIds.filter(function (x) { return x !== st.id; });
+            refreshFleetSection();
+          } });
+      });
+      var orgRows = Store.live('orgs', function (o) { return o.kind === 'RELIEF' && o.status === 'ACTIVE'; })
+        .map(function (o) {
+          var checked = draft.orgIds.indexOf(o.id) > -1;
+          return U.tick({ on: checked, label: o.name, onSet: function (e) {
+            if (e.target.checked) draft.orgIds.push(o.id);
+            else draft.orgIds = draft.orgIds.filter(function (x) { return x !== o.id; });
+          } });
+        });
+
+      U.empty(fleetSectionEl);
+      buildFleetSection().forEach(function (n) { fleetSectionEl.appendChild(n); });
+
+      return U.el('div', { style: 'display:flex;flex-direction:column;gap:20px' }, [
+        U.el('div', {}, [
+          U.el('h3', { class: 't2', style: 'font-size:14px;margin:0 0 4px', text: T('stores') }),
+          U.el('p', { class: 'tip', style: 'margin:0 0 10px', text: 'You can leave this empty — orgs can tag themselves, or you can come back to it.' }),
+          U.el('div', { style: 'display:flex;flex-direction:column;gap:6px' }, storeRows)
+        ]),
+        U.el('div', {}, [
+          U.el('h3', { class: 't2', style: 'font-size:14px;margin:0 0 10px', text: T('orgs') }),
+          orgRows.length ? U.el('div', { style: 'display:flex;flex-direction:column;gap:6px' }, orgRows)
+            : U.el('p', { class: 'tip', text: 'No relief organisations are active yet.' })
+        ]),
+        U.el('div', {}, [
+          U.el('h3', { class: 't2', style: 'font-size:14px;margin:0 0 10px', text: 'Fleet' }),
+          fleetSectionEl
+        ])
+      ]);
+    }
+
+    function submit() {
+      var id;
+      Store.change(function (now) {
+        if (existing) {
+          id = existing.id;
+          var r = now.disasters.filter(function (x) { return x.id === id; })[0];
+          if (r) { r.name = draft.name; r.kind = draft.type; r.zone = draft.zone; r.peopleAffected = draft.peopleAffected; }
+          Store.note('Edited', T('disaster') + ' ' + draft.name, c.person.id);
+        } else {
+          id = Store.nextId('DIS');
+          now.disasters.push({ id: id, code: null, kind: draft.type, name: draft.name, zone: draft.zone,
+            level: null, declared: new Date().toISOString(), peopleAffected: draft.peopleAffected,
+            lat: null, lng: null, reach_m: null, status: 'ACTIVE', note: null,
+            archived: false, archivedAt: null, archivedBy: null, archiveWhy: null,
+            addedBy: c.person.id, addedByOrg: c.person.org, fromCatalogue: true });
+          Store.note('Declared', T('disaster') + ' ' + draft.name, c.person.id);
+        }
+        function applyTags(kind, ids) {
+          now[kind].forEach(function (r) {
+            var want = ids.indexOf(r.id) > -1, has = (r.disasters || []).indexOf(id) > -1;
+            if (want && !has) r.disasters.push(id);
+            if (!want && has) r.disasters = r.disasters.filter(function (x) { return x !== id; });
+          });
+        }
+        applyTags('stores', draft.storeIds);
+        applyTags('orgs', draft.orgIds);
+        applyTags('fleets', draft.fleetIds);
+        now.drivers.forEach(function (dr) {
+          if (!dr.volunteer) return;
+          var want = draft.volunteerIds.indexOf(dr.id) > -1, has = (dr.disasters || []).indexOf(id) > -1;
+          if (want && !has) dr.disasters.push(id);
+          if (!want && has) dr.disasters = dr.disasters.filter(function (x) { return x !== id; });
+        });
+      });
+      U.shut();
+      U.brief(existing ? 'Saved' : 'Declared', draft.name + (existing ? ' is updated.' : ' is on the list.'), 'good');
+      c.again();
+    }
+
+    function buildButtons() {
+      if (step === 1) return [
+        U.btn('Cancel', { onTap: function () { U.shut(); } }),
+        U.btn('Next', { look: 'go', onTap: function () {
+          var name = draft.name.trim();
+          if (!name) { nameError = 'This needs a name.'; refresh(); return; }
+          nameError = null; draft.name = name; step = 2; refresh();
+        } })
+      ];
+      return [
+        U.btn('Previous', { onTap: function () { step = 1; refresh(); } }),
+        U.btn('Cancel', { onTap: function () { U.shut(); } }),
+        U.btn(existing ? 'Save' : 'Add', { look: 'go', onTap: submit })
+      ];
+    }
+
+    var win = U.panel({
+      title: (existing ? 'Edit ' : 'Add ') + t('disaster'),
+      body: U.el('div', {}, [
+        U.steps(['Which type, and where', 'Who is involved'], step - 1),
+        U.el('div', { style: 'margin-top:16px' }, [ step === 1 ? buildStep1() : buildStep2() ])
+      ]),
+      doThis: buildButtons()
+    });
+
+    function refresh() {
+      var mid = win.body.querySelector('.panel__mid');
+      U.empty(mid);
+      mid.appendChild(U.steps(['Which type, and where', 'Who is involved'], step - 1));
+      mid.appendChild(U.el('div', { style: 'margin-top:16px' }, [ step === 1 ? buildStep1() : buildStep2() ]));
+      var end = win.body.querySelector('.panel__end');
+      U.empty(end);
+      buildButtons().forEach(function (b) { end.appendChild(b); });
+    }
   }
+
+  function editDisaster(d) { openDisasterWizard(d); }
   function closeDisaster(d) {
     U.confirm({
       title: 'Close ' + d.name + '?',
@@ -2733,15 +2961,13 @@ addScreen('disasters', 'Disasters', function (c) {
         [{ value: 'ACTIVE', label: 'Ongoing' }, { value: 'CLOSED', label: 'Closed' }],
         function (v) { disastersUI.status = v; }),
       filter('Type', disastersUI.type,
-        DISASTER_TYPES.map(function (k) { return { value: k, label: k }; }),
+        liveDisasterTypes().map(function (k) { return { value: k, label: k }; }),
         function (v) { disastersUI.type = v; }),
       filter(T('area'), disastersUI.zone,
         region.areaList.map(function (z) { return { value: z, label: z }; }),
         function (v) { disastersUI.zone = v; }),
       U.el('span', { class: 'fill' }),
-      canManage ? U.btn('Add ' + t('disaster'), { icon: 'plus', look: 'go', onTap: function () {
-        U.brief('Not built yet', 'The two-step add-a-' + t('disaster') + ' flow is next.', 'note');
-      } }) : null
+      canManage ? U.btn('Add ' + t('disaster'), { icon: 'plus', look: 'go', onTap: function () { openDisasterWizard(null); } }) : null
     ]);
   }
 
