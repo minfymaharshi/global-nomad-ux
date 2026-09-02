@@ -1089,6 +1089,27 @@ body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-s
     <li>The record of what happened is written and cannot be edited.</li>
     <li>The sender can see it was received. Silence is never the confirmation.</li>
   </ol>
+
+  <h3>A control with one option is not a control</h3>
+  <p>The Place switcher and the language switcher both follow this. The
+     prototype started with two places (UAE, US) and two languages per place,
+     so a picker made sense. Scoped to one place and one language, a picker
+     showing a single always-pressed button teaches nothing and clicks nowhere
+     — it is furniture pretending to be a control.</p>
+  <ul>
+    <li>Below two live options, the group returns nothing rather than a
+        single disabled button. This is the same call already made for the
+        frame caption: something with only one value does not need a widget
+        to display it.</li>
+    <li>"Live" is counted the same reversible way as a hidden person or page —
+        see <b>Nothing is ever deleted</b> above. Hiding UAE or a language does
+        not touch its data or its code; it changes only what the control bar
+        offers. Bringing UAE back makes the Place group reappear on its own,
+        the moment it is restored — no reload, no second step.</li>
+    <li>The two kinds of hide are independent on purpose. Restoring a place
+        does not restore a language, and the reverse. Someone could want the
+        US shown in Spanish without UAE, or UAE back without Arabic.</li>
+  </ul>
 </section>
 
 <section id="wrong">

@@ -1189,7 +1189,7 @@ var Store = (function () {
   }
 
   function build(placeId) {
-    var place = REGIONS[placeId] || REGIONS.AE;
+    var place = REGIONS[placeId] || REGIONS[firstActiveRegionId()];
     var w = place.world();
     var fleets = makeFleets(place.id);
 
@@ -1237,7 +1237,7 @@ var Store = (function () {
       var raw = localStorage.getItem(KEY);
       if (raw) { var p = JSON.parse(raw); if (p && p.orgs && p.place) return p; }
     } catch (e) { /* blocked storage — carry on without saving */ }
-    return build('AE');
+    return build(firstActiveRegionId());
   }
   function write() { try { localStorage.setItem(KEY, JSON.stringify(now)); } catch (e) {} }
   function tell() { watchers.forEach(function (f) { try { f(now); } catch (e) { console.error(e); } }); }
@@ -2175,7 +2175,13 @@ var REGISTER = {
   'book-in':      { kind:'page',    name:'Book in stock',       why:'belonged to Stock keeper',                            when:'2026-09-01' },
   'kits':         { kind:'page',    name:'Kits',                why:'waiting on who builds the kits',                      when:'2026-09-01' },
   'set-aside':    { kind:'page',    name:'Set stock aside',     why:'belonged to Send-out planner',                        when:'2026-09-01' },
-  'restock':      { kind:'page',    name:'Restocking',          why:'belonged to Buyer',                                   when:'2026-09-01' }
+  'restock':      { kind:'page',    name:'Restocking',          why:'belonged to Buyer',                                   when:'2026-09-01' },
+  /* places and languages, hidden the same reversible way. Nothing about UAE
+     or Spanish is deleted — its data and code stay exactly as built — only
+     whether it can be reached from the control bar changes. */
+  'AE':           { kind:'region',   name:'UAE',      why:'Scoped to the US for now',        when:'2026-09-02' },
+  'lang-ar':      { kind:'language', name:'العربية',   why:'English only, for now',            when:'2026-09-02' },
+  'lang-es':      { kind:'language', name:'Español',  why:'English only, for now',            when:'2026-09-02' }
 };
 
 var Hidden = (function () {
@@ -2361,6 +2367,19 @@ function activeViews() {
   return PEOPLE_VIEWS.filter(function (v) { return !Hidden.is(v.id); });
 }
 function firstActive() { return activeViews()[0] || PEOPLE_VIEWS[0]; }
+
+/* same register, for places and languages */
+function activeRegionIds() {
+  return Object.keys(REGIONS).filter(function (k) { return !Hidden.is(k); });
+}
+function firstActiveRegionId() { return activeRegionIds()[0] || Object.keys(REGIONS)[0]; }
+function activeSpeech(list) {
+  return list.filter(function (l) { return !Hidden.is('lang-' + l.code); });
+}
+function firstActiveSpeechCode(list) {
+  var live = activeSpeech(list);
+  return (live[0] || list[0]).code;
+}
 </script>
 
 <script>
@@ -2491,9 +2510,12 @@ addScreen('archived', 'Archived', function (c) {
         { label:'', cell: function (id) {
             if (!canRestore) return U.el('span', { class:'stamp', text:'Only an admin can bring this back' });
             return U.btn('Bring back', { size:'small', icon:'refresh', onTap: function () {
+              var k = REGISTER[id].kind;
               U.confirm({ title:'Bring ' + (REGISTER[id].name || id) + ' back?',
-                detail: REGISTER[id].kind === 'persona'
+                detail: k === 'persona'
                   ? 'They will appear in the person picker again, with all their pages.'
+                  : (k === 'region' || k === 'language')
+                  ? 'It reappears as an option in the control bar above.'
                   : 'The page becomes reachable again from whichever side list points at it.',
                 yes:'Bring back', onYes: function () {
                   Hidden.restore(id);
@@ -2507,12 +2529,18 @@ addScreen('archived', 'Archived', function (c) {
   }
 
   var hiddenPeople = outOfSight.filter(function (id) { return REGISTER[id].kind === 'persona'; });
+  var hiddenPlaces = outOfSight.filter(function (id) { return REGISTER[id].kind === 'region' || REGISTER[id].kind === 'language'; });
   var hiddenPages  = outOfSight.filter(function (id) { return REGISTER[id].kind === 'page'; });
 
   parts.push(U.el('h2', { class: 't2', text: 'People taken out of sight' }));
   parts.push(hiddenPeople.length
     ? registerTable(hiddenPeople, 'People-views out of sight')
     : U.none({ headline: 'Everyone is in use', detail: 'No people-views are hidden.' }));
+
+  if (hiddenPlaces.length) {
+    parts.push(U.el('h2', { class: 't2', text: 'Places and languages out of sight' }));
+    parts.push(registerTable(hiddenPlaces, 'Places and languages out of sight'));
+  }
 
   if (hiddenPages.length) {
     parts.push(U.el('h2', { class: 't2', text: 'Pages no longer in a side list' }));
@@ -2737,11 +2765,16 @@ var Shell = (function () {
 
   /* ------------------------------------------------------------ bar parts */
   function placeGroup() {
+    /* A picker with one option is a control with nothing to control. While
+       only one place is active this returns null, same as the language
+       group below when only English is active. */
+    var ids = activeRegionIds();
+    if (ids.length < 2) return null;
     var lid = U.newId('lbl-place');
     return el('div', { class: 'grp' }, [
       el('span', { class: 'cap', id: lid, text: 'Place' }),
       el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid },
-        Object.keys(REGIONS).map(function (k) {
+        ids.map(function (k) {
           return el('button', { 'aria-pressed': String(Store.s.place === k), title: REGIONS[k].name,
             text: REGIONS[k].short, onclick: function () { setPlace(k); } });
         }))
@@ -2830,7 +2863,7 @@ var Shell = (function () {
   }
 
   function speechGroup(inSheet) {
-    var list = Store.place.speech;
+    var list = activeSpeech(Store.place.speech);
     if (list.length < 2) return null;
     var lid = U.newId('lbl-speech');
     return el('div', { class: 'grp' + (inSheet ? '' : ' extra') }, [
@@ -3146,6 +3179,10 @@ var Shell = (function () {
   function start() {
     root = document.getElementById('app');
     Store.start();
+    /* a place or language saved from before it was hidden should not strand
+       anyone — fall back quietly, same as a hidden person falls back below */
+    if (Hidden.is(Store.s.place)) Store.setPlace(firstActiveRegionId());
+    if (Hidden.is('lang-' + Store.s.speech)) Store.setSpeech(firstActiveSpeechCode(Store.place.speech));
     readPrefs();
     readAddress();
     MOTION.apply(Store.s.motion !== 'off');
@@ -3174,6 +3211,13 @@ var Shell = (function () {
       savePrefs(); writeAddress();
       A11Y.speak('That person is out of sight now. Showing ' + Store.one('people', next.person).name + '.');
     }
+    /* GN.hide('AE') or GN.hide('lang-es') can happen live, not just at load */
+    if (Hidden.is(Store.s.place)) {
+      var nextRegion = firstActiveRegionId();
+      Store.setPlace(nextRegion);
+      A11Y.speak('That place is out of sight now. Showing ' + REGIONS[nextRegion].name + '.');
+    }
+    if (Hidden.is('lang-' + Store.s.speech)) Store.setSpeech(firstActiveSpeechCode(Store.place.speech));
     draw(true);
   }
 
