@@ -535,11 +535,13 @@ h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2
 .kit-in.hand .figure b { font-size: 22px; }
 .kit-in.hand .figure span { font-size: 13px; }
 
-/* ---------------------------------------------------------- disaster card
-   Card option 1 from the review: type, place, a hero number, three attached
-   counts, a status chip, a menu. The closed state dims the number and the
-   three counts to --text-3 and swaps the footer for when it closed — the
-   one fact an open card cannot have yet. */
+/* -------------------------------------------------------------- record card
+   Name, place, a hero number, three counts, chips, a menu. Started as
+   option 1 from the disaster-card review; the Warehouses list reuses the
+   same classes rather than a near-copy, so a resize only ever happens in
+   one place. .closed only ever applies to a disaster — it dims the number
+   and the three counts to --text-3 and swaps the footer for when it
+   closed, the one fact an open card cannot have yet. */
 .d-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp4); }
 .d-card__top { display: flex; align-items: flex-start; gap: var(--sp3); }
 .d-card__id { flex: 1 1 auto; min-width: 0; }
@@ -957,11 +959,11 @@ var REGIONS = {
 
     world: function () { return {
       orgs:[
-        {id:'ORG-GN', kind:'PLATFORM', name:'Global Nomad',              status:'ACTIVE'},
-        {id:'ORG-R1', kind:'RELIEF',   name:'Gulf Coast Relief',         status:'ACTIVE'},
-        {id:'ORG-R2', kind:'RELIEF',   name:'Bayou Community Aid',       status:'WAITING'},
-        {id:'ORG-W1', kind:'STORAGE',  name:'GN Logistics',              status:'ACTIVE'},
-        {id:'ORG-W2', kind:'STORAGE',  name:'Delta Cold Chain Partners', status:'ACTIVE'}
+        {id:'ORG-GN', kind:'PLATFORM', name:'Global Nomad',              status:'ACTIVE', disasters:[]},
+        {id:'ORG-R1', kind:'RELIEF',   name:'Gulf Coast Relief',         status:'ACTIVE', disasters:['DIS-01']},
+        {id:'ORG-R2', kind:'RELIEF',   name:'Bayou Community Aid',       status:'WAITING', disasters:[]},
+        {id:'ORG-W1', kind:'STORAGE',  name:'GN Logistics',              status:'ACTIVE', disasters:[]},
+        {id:'ORG-W2', kind:'STORAGE',  name:'Delta Cold Chain Partners', status:'ACTIVE', disasters:[]}
       ],
       people:[
         {id:'P-ADMIN', org:'ORG-GN', job:'ADMIN',        name:'Dana Whitfield', phone:'+1 (713) 000-0001'},
@@ -1043,9 +1045,9 @@ var REGIONS = {
 function makeFleets(placeId) {
   var us = placeId === 'US';
   return [
-    { id:'FLEET-01', name: us ? 'Beaumont depot fleet'  : 'Ajman depot fleet',        store:'STORE-04', runBy:'PLATFORM'    },
-    { id:'FLEET-02', name: us ? 'Lafayette local fleet' : 'RAK local fleet',          store:'STORE-05', runBy:'RELIEF'      },
-    { id:'FLEET-03', name: us ? 'Delta Haulage'         : 'Northern Haulage',         store:'STORE-04', runBy:'THIRD_PARTY' }
+    { id:'FLEET-01', name: us ? 'Beaumont depot fleet'  : 'Ajman depot fleet',        store:'STORE-04', runBy:'PLATFORM',    disasters:[] },
+    { id:'FLEET-02', name: us ? 'Lafayette local fleet' : 'RAK local fleet',          store:'STORE-05', runBy:'RELIEF',      disasters:[] },
+    { id:'FLEET-03', name: us ? 'Delta Haulage'         : 'Northern Haulage',         store:'STORE-04', runBy:'THIRD_PARTY', disasters:[] }
   ];
 }
 
@@ -1275,6 +1277,9 @@ var Store = (function () {
     (w.drivers || []).forEach(function (d) {
       d.fleet = (d.id === 'DRIVER-03') ? null : 'FLEET-01';
       d.volunteer = !d.fleet;
+      /* explicit tag, for a volunteer whose warehouse is not itself tagged
+         to the disaster — see fleetsFor() */
+      d.disasters = [];
     });
 
     return {
@@ -2477,7 +2482,7 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
 
 /* Not yet designed. Kept honest: says so plainly, and stays navigable. */
 [ ['network','Network'], ['orgs','Organisations'],
-  ['stores','{Stores}'], ['people','People'], ['fleet','Drivers & fleets'],
+  ['people','People'], ['fleet','Drivers & fleets'],
   ['history','What happened'],
 
   ['lead-overview','Overview'], ['sites','{Sites}'], ['ask','Ask for supplies'],
@@ -2518,17 +2523,54 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
    ------------------------------------------------------------------------------ */
 var disastersUI = { q: '', status: '', type: '', zone: '', view: 'card' };
 
-function disasterOrgs(d) {
+/* An org counts if it runs a shelter here OR was tagged directly in the
+   wizard — a relief org can be brought in before it has any shelter up. */
+function orgIdsFor(d) {
   var seen = {};
   Store.live('sites', function (s) { return s.disaster === d.id; })
     .forEach(function (s) { seen[s.org] = true; });
-  return Object.keys(seen).length;
+  Store.live('orgs', function (o) { return (o.disasters || []).indexOf(d.id) > -1; })
+    .forEach(function (o) { seen[o.id] = true; });
+  return Object.keys(seen);
 }
+/* a View/Show-style toggle, shared by any list screen. Takes the drawing
+   context explicitly, since it is called from more than one screen's own
+   closure and has no closure of its own to borrow one from. */
+function segmented(label, value, options, onSet, c) {
+  var lid = U.newId('lbl-seg');
+  return U.el('div', { class: 'grp' }, [
+    U.el('span', { class: 'cap', id: lid, text: label }),
+    U.el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, options.map(function (o) {
+      return U.el('button', { 'aria-pressed': String(value === o.value),
+        onclick: function () { onSet(o.value); c.again(); } }, [o.label]);
+    }))
+  ]);
+}
+
+function disasterOrgs(d) { return orgIdsFor(d).length; }
 function disasterShelters(d) {
   return Store.live('sites', function (s) { return s.disaster === d.id; }).length;
 }
-function disasterStores(d) {
-  return Store.live('stores', function (s) { return (s.disasters || []).indexOf(d.id) > -1; }).length;
+function storesFor(d) {
+  return Store.live('stores', function (s) { return (s.disasters || []).indexOf(d.id) > -1; });
+}
+function disasterStores(d) { return storesFor(d).length; }
+
+/* A fleet or a volunteer driver comes in one of two ways: tagged directly,
+   or riding along because the warehouse it is based at was tagged. Both are
+   real; neither is shown as more "official" than the other. */
+function fleetsFor(d) {
+  var storeIds = storesFor(d).map(function (s) { return s.id; });
+  return Store.live('fleets', function (f) {
+    return (f.disasters || []).indexOf(d.id) > -1 || storeIds.indexOf(f.store) > -1;
+  });
+}
+function volunteersFor(d) {
+  var storeIds = storesFor(d).map(function (s) { return s.id; });
+  return Store.live('drivers', function (dr) {
+    if (!dr.volunteer) return false;
+    return (dr.disasters || []).indexOf(d.id) > -1 || storeIds.indexOf(dr.store) > -1;
+  });
 }
 
 addScreen('disasters', 'Disasters', function (c) {
@@ -2703,24 +2745,13 @@ addScreen('disasters', 'Disasters', function (c) {
     ]);
   }
 
-  function segmented(label, value, options, onSet) {
-    var lid = U.newId('lbl-dseg');
-    return U.el('div', { class: 'grp' }, [
-      U.el('span', { class: 'cap', id: lid, text: label }),
-      U.el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, options.map(function (o) {
-        return U.el('button', { 'aria-pressed': String(value === o.value),
-          onclick: function () { onSet(o.value); c.again(); } }, [o.label]);
-      }))
-    ]);
-  }
-
   /* Card/Table only — no Live/Archived here. A disaster only ever moves
      between Ongoing and Closed, and both stay in this one list. */
   var toggles = c.view === 'desk'
     ? U.el('div', { class: 'line wrap', style: 'margin-bottom:20px' }, [
         segmented('View', disastersUI.view,
           [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
-          function (v) { disastersUI.view = v; })
+          function (v) { disastersUI.view = v; }, c)
       ])
     : null;
 
@@ -2738,6 +2769,144 @@ addScreen('disasters', 'Disasters', function (c) {
 
   return U.el('div', { class: 'm-page' }, [
     U.el('h1', { class: 't1', text: T('disasters') }),
+    toolbar(),
+    toggles,
+    body
+  ]);
+});
+
+/* ------------------------------------------------------------------------------
+   Warehouses — Super Admin's list. Same toolbar and record-card pattern as
+   Disasters, reused rather than reinvented: search, two filters, card/table,
+   an empty state. One action per warehouse — Edit — so its menu is a plain
+   icon button, not a panel: a menu with one item in it is not a menu.
+   ------------------------------------------------------------------------------ */
+var STORE_RUNBY_WORD = { PLATFORM: 'Platform', PARTNER: 'Partner', RELIEF: 'Relief org' };
+var storesUI = { q: '', runBy: '', zone: '', view: 'card' };
+
+function storeDrivers(st) { return Store.live('drivers', function (d) { return d.store === st.id; }).length; }
+function storeVehicles(st) { return Store.live('vehicles', function (v) { return v.store === st.id; }).length; }
+function storeDisasters(st) { return (st.disasters || []).length; }
+
+addScreen('stores', '{Stores}', function (c) {
+  var canManage = c.person.job === 'ADMIN';
+  var region = Store.place;
+
+  function matches(st) {
+    if (storesUI.runBy && st.runBy !== storesUI.runBy) return false;
+    if (storesUI.zone && st.area !== storesUI.zone) return false;
+    var q = storesUI.q.trim().toLowerCase();
+    if (q && (st.name + ' ' + (st.area || '')).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }
+
+  var pool = Store.live('stores');
+  var rows = pool.filter(matches).slice().sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+
+  function clearFilters() {
+    storesUI.q = ''; storesUI.runBy = ''; storesUI.zone = ''; c.again();
+  }
+  function editStore(st) {
+    U.brief('Not built yet', 'The add-a-' + t('store') + ' flow, in edit mode — next.', 'note');
+  }
+
+  function moreButton(st) {
+    if (!canManage) return null;
+    var label = st.name + ' — edit';
+    return U.el('button', { class: 'icon-btn', title: label, 'aria-label': label,
+      onclick: function () { editStore(st); } }, [ U.ico('save', 16) ]);
+  }
+
+  function storeCard(st) {
+    var chips = [ U.chip(STORE_RUNBY_WORD[st.runBy] || st.runBy) ];
+    if (st.chilled) chips.push(U.chip('Chilled storage'));
+    return U.el('article', { class: 'box d-card' }, [
+      U.el('div', { class: 'd-card__top' }, [
+        U.el('div', { class: 'd-card__id' }, [
+          U.el('p', { class: 'd-name', text: st.name }),
+          U.el('p', { class: 'd-where', text: st.area })
+        ]),
+        moreButton(st)
+      ]),
+      U.el('div', { class: 'line wrap', style: 'margin-top:10px' }, chips),
+      U.el('div', { class: 'd-hero' }, [
+        U.el('b', { text: FMT.count(st.pallets) }), U.el('span', { text: 'pallets capacity' })
+      ]),
+      U.el('div', { class: 'rows three' }, [
+        U.figure(FMT.count(storeDisasters(st)), T('disasters')),
+        U.figure(FMT.count(storeDrivers(st)), T('drivers')),
+        U.figure(FMT.count(storeVehicles(st)), T('vehicles'))
+      ])
+    ]);
+  }
+
+  function tableView() {
+    return U.grid({
+      about: T('stores'),
+      cols: [
+        { label: 'Name', cell: function (st) { return U.el('b', { text: st.name }); } },
+        { label: 'Runs it', cell: function (st) { return STORE_RUNBY_WORD[st.runBy] || st.runBy; } },
+        { label: T('area'), cell: function (st) { return st.area; } },
+        { label: 'Chilled', cell: function (st) { return st.chilled ? 'Yes' : 'No'; } },
+        { label: 'Pallets', cell: function (st) { return FMT.count(st.pallets); }, figs: true },
+        { label: T('disasters'), cell: function (st) { return FMT.count(storeDisasters(st)); }, figs: true },
+        { label: T('drivers'), cell: function (st) { return FMT.count(storeDrivers(st)); }, figs: true },
+        { label: T('vehicles'), cell: function (st) { return FMT.count(storeVehicles(st)); }, figs: true },
+        { label: '', cell: function (st) { return moreButton(st); } }
+      ],
+      rows: rows
+    });
+  }
+
+  function toolbar() {
+    var searchField = U.line({ value: storesUI.q, hint: 'Search by name or ' + t('area'),
+      onType: function (e) { storesUI.q = e.target.value; c.again(); } });
+    searchField.setAttribute('data-keep-focus', 'stores-search');
+
+    function filter(label, value, options, onSet) {
+      return U.ask({ label: label, field: U.choose({
+        value: value, options: [{ value: '', label: 'All' }].concat(options),
+        onSet: function (e) { onSet(e.target.value); c.again(); }
+      }) });
+    }
+
+    return U.el('div', { class: 'line wrap', style: 'align-items:flex-end;gap:12px;margin-bottom:16px' }, [
+      U.ask({ label: 'Search', field: searchField }),
+      filter('Runs it', storesUI.runBy,
+        Object.keys(STORE_RUNBY_WORD).map(function (k) { return { value: k, label: STORE_RUNBY_WORD[k] }; }),
+        function (v) { storesUI.runBy = v; }),
+      filter(T('area'), storesUI.zone,
+        region.areaList.map(function (z) { return { value: z, label: z }; }),
+        function (v) { storesUI.zone = v; }),
+      U.el('span', { class: 'fill' }),
+      canManage ? U.btn('Add ' + t('store'), { icon: 'plus', look: 'go', onTap: function () {
+        U.brief('Not built yet', 'The add-a-' + t('store') + ' flow is next.', 'note');
+      } }) : null
+    ]);
+  }
+
+  var toggles = c.view === 'desk'
+    ? U.el('div', { class: 'line wrap', style: 'margin-bottom:20px' }, [
+        segmented('View', storesUI.view,
+          [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
+          function (v) { storesUI.view = v; }, c)
+      ])
+    : null;
+
+  var body;
+  if (!pool.length) {
+    body = U.none({ headline: 'No ' + t('stores') + ' yet', detail: 'Nothing has been added for ' + region.name + '.' });
+  } else if (!rows.length) {
+    body = U.none({ headline: 'Nothing matches', detail: 'Try a different search, or clear the filters.',
+      doThis: U.btn('Clear filters', { size: 'small', onTap: clearFilters }) });
+  } else if (c.view === 'desk' && storesUI.view === 'table') {
+    body = tableView();
+  } else {
+    body = U.el('div', { class: 'd-grid' }, rows.map(storeCard));
+  }
+
+  return U.el('div', { class: 'm-page' }, [
+    U.el('h1', { class: 't1', text: T('stores') }),
     toolbar(),
     toggles,
     body

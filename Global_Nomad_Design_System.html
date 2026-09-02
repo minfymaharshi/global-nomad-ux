@@ -394,7 +394,9 @@ body[data-face="mob"] .icon-btn { min-width:var(--tap-mob); min-height:var(--tap
    meet the real phone floor, which this page's switch is exempt from. */
 body[data-face="mob"] .pick button { min-height:var(--tap-mob); min-width:56px; font-size:14px; }
 
-/* disaster card — copied from the product, not written fresh */
+/* record card — copied from the product, not written fresh. Started as the
+   disaster card, option 1 from the review; the Warehouses list reuses these
+   same classes rather than a near-copy, so a resize only ever happens here. */
 .d-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:var(--sp4); }
 .d-card__top { display:flex; align-items:flex-start; gap:var(--sp3); }
 .d-card__id { flex:1 1 auto; min-width:0; }
@@ -1028,10 +1030,14 @@ body[data-face="mob"] .d-foot { font-size:13px; }
 
   <!-- ------------------------------------------------------------ disaster card -->
   <article class="entry">
-    <div class="entry__top"><h3>Disaster card</h3><code>.d-card</code>
-      <p class="entry__why">Option 1 from the six-card review, chosen: a
-        faithful description of what a disaster is and what is attached to
-        it, not a progress report. Two states — open and closed.</p></div>
+    <div class="entry__top"><h3>Record card</h3><code>.d-card</code>
+      <p class="entry__why">Option 1 from the six-card review, chosen for
+        disasters: a faithful description of what a record is and what is
+        attached to it, not a progress report. Kept its original class names
+        so the Warehouses list could reuse it rather than near-copy it — a
+        resize only ever happens in one place. Two states on a disaster card
+        specifically — open and closed; a warehouse card has no closed
+        state, so it never carries <code>.closed</code>.</p></div>
     <div class="demo stack">
       <article class="box d-card" style="max-width:340px">
         <div class="d-card__top">
