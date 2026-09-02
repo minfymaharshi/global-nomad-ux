@@ -273,7 +273,9 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 }
 .bar[data-shut="true"] .bar__open { display: inline-flex; }
 .bar__open .tag2 { flex-basis: 24px; width: 24px; height: 24px; font-size: 12px; }
-.bar__open span { font-size: 12px; font-weight: 600; }
+/* :not(.tag2) for the same reason as .side__who above — the mark is a span too,
+   and unscoped this quietly took its font weight from 700 down to 600. */
+.bar__open span:not(.tag2) { font-size: 12px; font-weight: 600; }
 .bar__open em { font-style: normal; font-size: 12px; color: var(--text-3); }
 
 .bar .bar__more { display: none; }
@@ -375,9 +377,13 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   padding: var(--sp3) var(--sp2); display: flex; align-items: center; gap: var(--sp2); }
 .side__who { display: flex; align-items: center; gap: var(--sp2); min-width: 0; flex: 1 1 auto;
   padding: 4px; border-radius: var(--r2); }
-.side__who b { display: block; font-size: 12.5px; font-weight: 650; line-height: 1.2;
+/* Scoped to the name block, NOT to any span in here. Unscoped, this also hit
+   the person mark beside it: it outranks .tag2, so it turned the mark's grid
+   back into a block — killing the centring — and repainted white initials
+   grey on a dark circle. Two visible faults from one loose selector. */
+.side__who > div b { display: block; font-size: 12.5px; font-weight: 650; line-height: 1.2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side__who span { display: block; font-size: 12px; color: var(--text-3); line-height: 1.25;
+.side__who > div span { display: block; font-size: 12px; color: var(--text-3); line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side[data-narrow="true"] .side__foot { flex-direction: column; gap: var(--sp2); }
 .side[data-narrow="true"] .side__who { flex: 0 0 auto; justify-content: center; }
@@ -1635,11 +1641,79 @@ var A11Y = (function () {
       });
     }
 
+    /* --------------------------------------------------------------------
+       Contrast as DRAWN, not as intended.
+       Everything above this point checks a hand-written list of colour pairs
+       we meant to use. That list cannot see a pair the cascade invents. It
+       reported nothing while the person mark showed grey initials on a dark
+       circle, because '--text-3 on --solid' was never a pair anyone intended
+       — a loose descendant selector produced it. So: walk the text actually
+       on screen, read the colour actually painted, and work up the tree for
+       the background actually behind it.
+       -------------------------------------------------------------------- */
+    var drawn = [];
+    function rgb(str) {
+      var m = /rgba?\(([^)]+)\)/.exec(str || '');
+      if (!m) return null;
+      var p = m[1].split(',').map(function (x) { return parseFloat(x); });
+      return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+    }
+    function over(front, back) {           /* flatten a translucent colour */
+      if (front.a >= 1) return front;
+      return { r: front.r * front.a + back.r * (1 - front.a),
+               g: front.g * front.a + back.g * (1 - front.a),
+               b: front.b * front.a + back.b * (1 - front.a), a: 1 };
+    }
+    function hex(c) {
+      function h(v) { return ('0' + Math.round(v).toString(16)).slice(-2); }
+      return '#' + h(c.r) + h(c.g) + h(c.b);
+    }
+    function backdropOf(node) {
+      var acc = null, n = node;
+      while (n && n.nodeType === 1) {
+        var c = rgb(getComputedStyle(n).backgroundColor);
+        if (c && c.a > 0) { acc = acc ? over(acc, c) : c; if (acc.a >= 1) return acc; }
+        n = n.parentElement;
+      }
+      var page = rgb(getComputedStyle(document.body).backgroundColor);
+      return acc && page ? over(acc, page) : (acc || page || { r:255, g:255, b:255, a:1 });
+    }
+    function measureDrawn(where, label) {
+      if (!where) return;
+      Array.prototype.forEach.call(where.querySelectorAll('*'), function (n) {
+        if (n.children.length) return;
+        var words = (n.textContent || '').trim();
+        if (!words) return;
+        if (!n.offsetWidth && !n.offsetHeight) return;
+        if (n.classList && n.classList.contains('vh')) return; /* for readers only */
+        var cs = getComputedStyle(n);
+        if (cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return;
+        var fg = rgb(cs.color);
+        if (!fg) return;
+        var bg = backdropOf(n);
+        fg = over(fg, bg);
+        /* WCAG 1.4.3: large text is 24px, or 18.66px when bold */
+        var px = parseFloat(cs.fontSize), bold = parseInt(cs.fontWeight, 10) >= 700;
+        var need = (px >= 24 || (bold && px >= 18.66)) ? 3.0 : 4.5;
+        var got = ratio(hex(fg), hex(bg));
+        if (got < need) {
+          drawn.push(label + ' ' + (n.className || n.tagName.toLowerCase()) + ' "' +
+            words.slice(0, 24) + '" ' + hex(fg) + ' on ' + hex(bg) +
+            ' — ' + (Math.round(got * 100) / 100) + ', needs ' + need);
+        }
+      });
+    }
+    /* The product AND the bar you drive it from. Anything a person reads. */
+    measureDrawn(scope, 'product');
+    measureDrawn(document.querySelector('.bar'), 'demo bar');
+
     var bad = rows.filter(function (r) { return !r.ok; });
     var out = { pairs: rows.length, contrastFails: bad.length, contrast: bad,
+                drawnContrastFails: drawn.length, drawnContrast: drawn,
                 textTooSmall: tooSmall, touchTooSmall: tooTight, sticksOut: sticksOut,
                 minText: minText, minTap: minTap,
-                clean: !bad.length && !tooSmall.length && !tooTight.length && !sticksOut.length };
+                clean: !bad.length && !drawn.length && !tooSmall.length &&
+                       !tooTight.length && !sticksOut.length };
     if (!quiet) {
       if (console.table) console.table(rows);
       console.log(out.clean ? '%cAccess checks clean' : '%cAccess problems found',
@@ -3260,7 +3334,8 @@ var CHECK = (function () {
     var w = checkWords(), n = numbers(), m = motion(), a = A11Y.audit(true), pg = pages(), sc = scrolls();
     var total = w.problems.length + n.problems.length + m.problems.length + pg.problems.length +
                 sc.problems.length +
-                a.contrastFails + a.textTooSmall.length + a.touchTooSmall.length + a.sticksOut.length;
+                a.contrastFails + a.drawnContrastFails +
+                a.textTooSmall.length + a.touchTooSmall.length + a.sticksOut.length;
     var out = { words: w, numbers: n, motion: m, links: pg, scrolls: sc, access: a,
                 problems: total, clean: total === 0 };
     if (!quiet) {
@@ -3271,7 +3346,8 @@ var CHECK = (function () {
       if (m.problems.length) console.warn('Movement:', m.problems);
       if (pg.problems.length) console.warn('Broken links:', pg.problems);
       if (sc.problems.length) console.warn('Rogue scrolls:', sc.problems);
-      if (a.contrastFails) console.warn('Contrast:', a.contrast);
+      if (a.contrastFails) console.warn('Contrast, colours we meant to use:', a.contrast);
+      if (a.drawnContrastFails) console.warn('Contrast, as actually drawn:', a.drawnContrast);
       if (a.textTooSmall.length) console.warn('Text too small:', a.textTooSmall);
       if (a.touchTooSmall.length) console.warn('Touch targets too small:', a.touchTooSmall);
       if (a.sticksOut.length) console.warn('Sticking out of the frame:', a.sticksOut);
