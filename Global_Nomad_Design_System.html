@@ -375,6 +375,46 @@ details.fold[open] > summary .ico { transform:rotate(180deg); }
 details.fold[open] > summary { border-bottom:1px solid var(--rule-soft); }
 details.fold .fold__body { padding:var(--sp4); }
 body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-size:15px; }
+
+/* icon button — a single glyph, nothing else */
+.icon-btn { display:inline-grid; place-items:center; min-width:var(--tap); min-height:var(--tap);
+  background:var(--paper); border:1px solid var(--edge); border-radius:var(--r2);
+  color:var(--text-2); }
+.icon-btn:hover { background:var(--paper-2); }
+.icon-btn[aria-pressed="true"] { background:var(--solid); border-color:var(--solid); color:var(--on-solid); }
+body[data-face="mob"] .icon-btn { min-width:var(--tap-mob); min-height:var(--tap-mob); }
+
+/* a small muted tag beside a label — "hidden", "closed by default", etc. */
+.stamp { font-size:12px; color:var(--text-3); white-space:nowrap; }
+
+/* the toggle used for Card/Table and Live/Archived on the Disasters page is
+   the SAME .pick as the entry above — but that entry's own sizing is this
+   page's Desktop/Phone switch, sized for whoever is driving the kit, and is
+   deliberately left as-is. A .pick used inside actual page content has to
+   meet the real phone floor, which this page's switch is exempt from. */
+body[data-face="mob"] .pick button { min-height:var(--tap-mob); min-width:56px; font-size:14px; }
+
+/* disaster card — copied from the product, not written fresh */
+.d-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:var(--sp4); }
+.d-card__top { display:flex; align-items:flex-start; gap:var(--sp3); }
+.d-card__id { flex:1 1 auto; min-width:0; }
+.d-name { font-size:15px; font-weight:650; line-height:1.25; margin:0; }
+.d-where { font-size:12px; color:var(--text-3); margin:2px 0 0; }
+.d-hero { margin-top:var(--sp3); display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.d-hero b { font-family:var(--figs); font-size:26px; font-weight:700; letter-spacing:-.02em;
+  line-height:1; font-variant-numeric:tabular-nums; }
+.d-hero span { font-size:12px; color:var(--text-3); }
+.d-card .rows.three { margin-top:var(--sp3); }
+.d-foot { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:var(--sp3);
+  padding-top:var(--sp3); border-top:1px solid var(--rule-soft); font-size:12px; color:var(--text-3); }
+.d-card.closed .d-name { color:var(--text-2); }
+.d-card.closed .d-hero b { color:var(--text-3); }
+.d-card.closed .rows.three .figure b { color:var(--text-3); font-weight:650; }
+body[data-face="mob"] .d-name { font-size:16px; }
+body[data-face="mob"] .d-where { font-size:13px; }
+body[data-face="mob"] .d-hero b { font-size:28px; }
+body[data-face="mob"] .d-hero span { font-size:13px; }
+body[data-face="mob"] .d-foot { font-size:13px; }
 </style>
 
 <div class="wrap">
@@ -476,9 +516,11 @@ body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-s
 
   <h3>Words that change by place</h3>
   <p>Held in one list per place. Adding a place means adding its overrides and
-     nothing else — no screen mentions a place by name.</p>
+     nothing else — no screen mentions a place by name. The mechanism stays
+     even though only one place is active right now: UAE is hidden, not
+     removed, and its words are exactly as they were built.</p>
   <div class="tw"><table>
-    <thead><tr><th>Meaning</th><th>Emirates</th><th>States</th><th class="f">Token</th></tr></thead>
+    <thead><tr><th>Meaning</th><th>Emirates <span class="stamp">hidden</span></th><th>States <span class="stamp">active</span></th><th class="f">Token</th></tr></thead>
     <tbody>
       <tr><td>Where food is taken</td><td>Relief camp</td><td>Shelter</td><td class="f">{site}</td></tr>
       <tr><td>Where stock is kept</td><td>Warehouse</td><td>Warehouse</td><td class="f">{store}</td></tr>
@@ -488,13 +530,15 @@ body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-s
   </table></div>
   <p>A label may contain <code>{Site}</code> for the word with a capital or
      <code>{site}</code> for mid-sentence. So one label,
-     <code>Stock at this {site}</code>, reads correctly in both places.</p>
+     <code>Stock at this {site}</code>, reads correctly in whichever place is
+     active.</p>
 
-  <div class="callout hold">
-    <b>Needs a decision</b>
-    <p>The list above covers four words. There are more — “delivery” versus
-       “run”, “job” versus “trip”, whether a driver sees the same nouns as an
-       office. Worth settling before a large batch of screen copy is written.</p>
+  <div class="callout">
+    <b>Resolved — one vocabulary, no per-place swap beyond the table above</b>
+    <p>Settled 2026-09-02. “Delivery”, not “run”. Every persona — the driver
+       included — sees the same nouns as the office; there is no separate
+       driver vocabulary. This was the open decision the earlier build of
+       this page flagged; it no longer is one.</p>
   </div>
 
   <h3>Words we do not use</h3>
@@ -979,6 +1023,90 @@ body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-s
       <dt>Wording</dt><dd>No note saying “closed by default” or “click to expand”. The caret already says it. A label that explains the control instead of the content is wasted.</dd>
       <dt>Access</dt><dd><code>&lt;summary&gt;</code> reports its own expanded state — do not add <code>aria-expanded</code>, and do not put a heading inside it and a second one above it.</dd>
       <dt>For developers</dt><dd>The body may scroll, and <code>.fold__body</code> is on the list of regions allowed to. Anything else that scrolls inside a page is reported by <code>GN.CHECK.scrolls()</code>.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------------ disaster card -->
+  <article class="entry">
+    <div class="entry__top"><h3>Disaster card</h3><code>.d-card</code>
+      <p class="entry__why">Option 1 from the six-card review, chosen: a
+        faithful description of what a disaster is and what is attached to
+        it, not a progress report. Two states — open and closed.</p></div>
+    <div class="demo stack">
+      <article class="box d-card" style="max-width:340px">
+        <div class="d-card__top">
+          <div class="d-card__id">
+            <p class="d-name">Hurricane Marisol</p>
+            <p class="d-where">Louisiana</p>
+          </div>
+          <button class="icon-btn" title="Archive Hurricane Marisol" aria-label="Archive Hurricane Marisol">
+            <svg class="ico filled" viewBox="0 0 22 22" width="16" height="16" aria-hidden="true"><circle cx="11" cy="4.5" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.5" r="1.6"/></svg>
+          </button>
+        </div>
+        <div class="line wrap" style="margin-top:10px"><span class="chip">Hurricane</span><span class="chip hold">Ongoing</span></div>
+        <div class="d-hero"><b>26,500</b><span>people affected</span></div>
+        <div class="rows three">
+          <div class="box figure"><b>1</b><span>Organisations</span></div>
+          <div class="box figure"><b>3</b><span>Shelters</span></div>
+          <div class="box figure"><b>4</b><span>Warehouses</span></div>
+        </div>
+      </article>
+      <article class="box d-card closed" style="max-width:340px">
+        <div class="d-card__top">
+          <div class="d-card__id">
+            <p class="d-name">Tuscaloosa County tornado outbreak</p>
+            <p class="d-where">Alabama</p>
+          </div>
+          <button class="icon-btn" title="Bring Tuscaloosa County tornado outbreak back" aria-label="Bring Tuscaloosa County tornado outbreak back">
+            <svg class="ico filled" viewBox="0 0 22 22" width="16" height="16" aria-hidden="true"><circle cx="11" cy="4.5" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.5" r="1.6"/></svg>
+          </button>
+        </div>
+        <div class="line wrap" style="margin-top:10px"><span class="chip">Tornado</span><span class="chip">Closed</span></div>
+        <div class="d-hero"><b>4,800</b><span>people affected</span></div>
+        <div class="rows three">
+          <div class="box figure"><b>0</b><span>Organisations</span></div>
+          <div class="box figure"><b>0</b><span>Shelters</span></div>
+          <div class="box figure"><b>1</b><span>Warehouses</span></div>
+        </div>
+        <div class="d-foot">
+          <svg class="ico" viewBox="0 0 22 22" width="14" height="14" aria-hidden="true"><polyline points="4,12 9,17 18,5"></polyline></svg>
+          <span>Closed 4 days ago · ran 14 days</span>
+        </div>
+      </article>
+    </div>
+    <div class="spec"><dl>
+      <dt>The hero number</dt><dd>People affected — a <b>declared</b> figure on the record itself, like its severity level, not computed from linked data. <b>26px</b>, tabular figures.</dd>
+      <dt>The three counts</dt><dd>Organisations, shelters and warehouses attached to this disaster — real, computed relationships, not declared. Zero is a true answer for a disaster just raised: nothing has been tagged to it yet.</dd>
+      <dt>Status vs. archived</dt><dd>Two different questions, kept independent. <b>Ongoing / Closed</b> is the disaster's own lifecycle — a plain neutral chip either way, because closing is not itself good or bad news. <b>Live / Archived</b> is the same reversible hide used everywhere else in this kit. A closed disaster can still be live; archiving is a separate, later act.</dd>
+      <dt>The closed state</dt><dd>Three changes only. Name steps to <code>--text-2</code>, the hero number and the three counts step to <code>--text-3</code>, and a footer line replaces where an open card has nothing yet to say — when it closed, and how long it ran, both computed from real dates.</dd>
+      <dt>The menu</dt><dd>One action right now — archive, or bring back — so it is a single-purpose icon button, not a dropdown with one entry in it. The kebab shape is kept because a second action is expected once the disaster has a detail page to open.</dd>
+      <dt>Access</dt><dd>The icon button carries its own <code>title</code> and <code>aria-label</code> naming the disaster and the action — never just “More”.</dd>
+      <dt>For developers</dt><dd><code>.icon-btn</code> had no phone-size rule at all until this card needed one on Super Admin's phone surface — it had only ever been used inside desktop-only chrome before. Any icon button used inside actual page content needs the same check: does it meet 44px where the page can be viewed on a phone, not just where it happens to be used today.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------------ list toolbar -->
+  <article class="entry">
+    <div class="entry__top"><h3>List toolbar</h3><code>.ask</code> <code>.pick</code>
+      <p class="entry__why">Search, filters, and a Card/Table or Live/Archived
+        switch, for any page that lists more than a handful of records.</p></div>
+    <div class="demo stack">
+      <div class="line wrap" style="align-items:flex-end;gap:12px">
+        <div class="ask"><label class="ask__label">Search</label><input class="in" placeholder="Search by name or state"></div>
+        <div class="ask"><label class="ask__label">Status</label><select class="sel"><option>All</option></select></div>
+      </div>
+      <div class="line wrap" style="gap:20px">
+        <div class="grp"><span class="cap">View</span><div class="pick" role="group"><button aria-pressed="true">Cards</button><button aria-pressed="false">Table</button></div></div>
+        <div class="grp"><span class="cap">Show</span><div class="pick" role="group"><button aria-pressed="true">Live</button><button aria-pressed="false">Archived (1)</button></div></div>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Search</dt><dd>Filters as you type, no button to press. A search box that needs a submit action makes someone wonder whether the list in front of them is already current.</dd>
+      <dt>Filters</dt><dd>Real dropdowns, each with an explicit “All”. Filter values are never a hand-picked shortlist — the Type filter reads from the same list the record's own type picker uses, so a type added there is a real filter option here without new code.</dd>
+      <dt>Card / Table</dt><dd>Desktop only. On a phone this switch does not render — cards are the only view, per the rule that a control with nothing to control does not render (see <b>A control with one option is not a control</b>).</dd>
+      <dt>Counts in a toggle label</dt><dd>“Archived (1)” — the number is read from the record count at the moment of drawing, never typed in. It disappears entirely at zero, since “Archived (0)” tells a reader less than “Archived” alone.</dd>
+      <dt>For developers — the one real trap here</dt><dd><code>.pick</code> is also this design-system page's own Desktop/Phone switch, and that switch is deliberately sized for whoever is driving the kit, not for the simulated phone floor. Reusing <code>.pick</code> <em>inside actual page content</em> — like this toolbar — crosses into the product, and the product's phone floor applies. Missed the first time, caught by <code>GN.A11Y.audit()</code> on Super Admin's own phone surface: two buttons at 12.5px on a 26px target, both under floor. Fixed with a phone-only override scoped to content, leaving the page-chrome use of <code>.pick</code> untouched.</dd>
+      <dt>For developers — typing without losing focus</dt><dd>A live-filtering search box redraws the list on every keystroke, and this kit's screens redraw whole rather than diff. Without help, the input node is destroyed and rebuilt each time and loses focus after one character. Any field marked <code>data-keep-focus="…"</code> survives a redraw: its value is already correct because state drives it, and <code>paint()</code> now restores focus and the cursor position to whichever element carries a matching value after every repaint.</dd>
     </dl></div>
   </article>
 </section>

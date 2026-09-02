@@ -200,6 +200,12 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 }
 .pick button:hover:not([aria-pressed="true"]) { background: var(--paper-2); }
 .pick button[aria-pressed="true"] { background: var(--solid); color: var(--on-solid); }
+/* .pick is also the demo control bar's own toggle, sized for whoever is
+   driving the tool — that bar sits outside .kit-in and is exempt from the
+   product's own floors on purpose. A .pick used INSIDE simulated page
+   content, like the Disasters screen's Card/Table and Live/Archived
+   toggles, is the product, and must meet the real phone floor. */
+.kit-in.hand .pick button { min-height: var(--tap-mob); min-width: 56px; font-size: 14px; }
 
 .drop {
   background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r2);
@@ -217,6 +223,7 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 }
 .icon-btn:hover { background: var(--paper-2); }
 .icon-btn[aria-pressed="true"] { background: var(--solid); border-color: var(--solid); color: var(--on-solid); }
+.kit-in.hand .icon-btn { min-width: var(--tap-mob); min-height: var(--tap-mob); }
 
 /* who am I */
 .who { position: relative; }
@@ -528,6 +535,32 @@ h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2
 .kit-in.hand .figure b { font-size: 22px; }
 .kit-in.hand .figure span { font-size: 13px; }
 
+/* ---------------------------------------------------------- disaster card
+   Card option 1 from the review: type, place, a hero number, three attached
+   counts, a status chip, a menu. The closed state dims the number and the
+   three counts to --text-3 and swaps the footer for when it closed — the
+   one fact an open card cannot have yet. */
+.d-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp4); }
+.d-card__top { display: flex; align-items: flex-start; gap: var(--sp3); }
+.d-card__id { flex: 1 1 auto; min-width: 0; }
+.d-name { font-size: 15px; font-weight: 650; line-height: 1.25; margin: 0; }
+.d-where { font-size: 12px; color: var(--text-3); margin: 2px 0 0; }
+.d-hero { margin-top: var(--sp3); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.d-hero b { font-family: var(--figs); font-size: 26px; font-weight: 700; letter-spacing: -.02em;
+  line-height: 1; font-variant-numeric: tabular-nums; }
+.d-hero span { font-size: 12px; color: var(--text-3); }
+.d-card .rows.three { margin-top: var(--sp3); }
+.d-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: var(--sp3);
+  padding-top: var(--sp3); border-top: 1px solid var(--rule-soft); font-size: 12px; color: var(--text-3); }
+.d-card.closed .d-name { color: var(--text-2); }
+.d-card.closed .d-hero b { color: var(--text-3); }
+.d-card.closed .rows.three .figure b { color: var(--text-3); font-weight: 650; }
+.kit-in.hand .d-name { font-size: 16px; }
+.kit-in.hand .d-where { font-size: 13px; }
+.kit-in.hand .d-hero b { font-size: 28px; }
+.kit-in.hand .d-hero span { font-size: 13px; }
+.kit-in.hand .d-foot { font-size: 13px; }
+
 /* asking for something */
 .ask { display: block; margin-bottom: var(--sp4); }
 .ask > .ask__label { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 5px; }
@@ -808,6 +841,17 @@ var STATUS = {
 };
 function statusWord(code) { return STATUS[code] || code; }
 
+/* A disaster's own lifecycle — kept separate from STATUS above. Several
+   other kinds of record (organisations, sites, vehicles) also use the code
+   'ACTIVE' with their own meaning; folding disaster status into the shared
+   map would force one word to serve two different questions. */
+var DISASTER_STATUS = { ACTIVE: 'Ongoing', CLOSED: 'Closed' };
+function disasterStatusWord(code) { return DISASTER_STATUS[code] || code; }
+
+/* Fixed for now — the same list the Add-disaster wizard's type picker will
+   read from, so a type added there shows up as a real filter option here. */
+var DISASTER_TYPES = ['Hurricane', 'Flood', 'Wildfire', 'Tornado', 'Winter storm'];
+
 
 /* ==============================================================================
    2 · REGIONS — the places
@@ -930,10 +974,18 @@ var REGIONS = {
         {id:'P-DRIVE', org:'ORG-W1', job:'DRIVER',       name:'Wes Carrington', phone:'+1 (409) 000-0101'}
       ],
       disasters:[
-        {id:'DIS-01', code:'GC-HURR-021', kind:'Hurricane', name:'Hurricane Marisol',
-         level:'Category 3', declared:'2026-08-24T06:15:00-05:00',
+        {id:'DIS-01', code:'GC-HURR-021', kind:'Hurricane', name:'Hurricane Marisol', zone:'Louisiana',
+         level:'Category 3', declared:'2026-08-24T06:15:00-05:00', peopleAffected:26500,
          lat:30.05, lng:-93.20, reach_m:90000, status:'ACTIVE',
-         note:'Category 3 landfall west of Cameron Parish. Storm surge and inland flooding across southwest Louisiana and southeast Texas. Interstate access comes and goes.'}
+         note:'Category 3 landfall west of Cameron Parish. Storm surge and inland flooding across southwest Louisiana and southeast Texas. Interstate access comes and goes.'},
+        {id:'DIS-02', code:'MS-FLOOD-006', kind:'Flood', name:'Pearl River flooding', zone:'Mississippi',
+         level:'Moderate', declared:'2026-09-01T14:40:00-05:00', peopleAffected:3100,
+         lat:32.30, lng:-90.18, reach_m:15000, status:'ACTIVE',
+         note:'Sustained rain pushed the Pearl River past flood stage south of Jackson. Just declared — nothing tagged to it yet.'},
+        {id:'DIS-03', code:'AL-TORN-011', kind:'Tornado', name:'Tuscaloosa County tornado outbreak', zone:'Alabama',
+         level:'EF-3', declared:'2026-08-15T19:05:00-05:00', closedAt:'2026-08-29T12:00:00-05:00', peopleAffected:4800,
+         lat:33.21, lng:-87.57, reach_m:8000, status:'CLOSED',
+         note:'Multi-vortex tornado tracked through northern Tuscaloosa County. Response wound down once every request was delivered and no new ones came in.'}
       ],
       sites:[
         {id:'SITE-01', org:'ORG-R1', disaster:'DIS-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
@@ -941,11 +993,11 @@ var REGIONS = {
         {id:'SITE-03', org:'ORG-R1', disaster:'DIS-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE'}
       ],
       stores:[
-        {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Houston distribution center', area:'Texas',     post:'77032', lat:29.9844, lng:-95.3414, pallets:2400, chilled:true },
-        {id:'STORE-02', org:'ORG-W1', runBy:'PLATFORM', name:'Baton Rouge staging depot',   area:'Louisiana', post:'70805', lat:30.4915, lng:-91.1571, pallets:900,  chilled:false},
-        {id:'STORE-03', org:'ORG-W2', runBy:'PARTNER',  name:'Mobile industrial store',     area:'Alabama',   post:'36607', lat:30.6954, lng:-88.0399, pallets:1200, chilled:true },
-        {id:'STORE-04', org:'ORG-W1', runBy:'PLATFORM', name:'Beaumont coastal depot',      area:'Texas',     post:'77705', lat:30.0402, lng:-94.1066, pallets:1600, chilled:false},
-        {id:'STORE-05', org:'ORG-R1', runBy:'RELIEF',   name:'Lafayette forward store',     area:'Louisiana', post:'70508', lat:30.1841, lng:-92.0198, pallets:180,  chilled:false}
+        {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Houston distribution center', area:'Texas',     post:'77032', lat:29.9844, lng:-95.3414, pallets:2400, chilled:true,  disasters:['DIS-01']},
+        {id:'STORE-02', org:'ORG-W1', runBy:'PLATFORM', name:'Baton Rouge staging depot',   area:'Louisiana', post:'70805', lat:30.4915, lng:-91.1571, pallets:900,  chilled:false, disasters:['DIS-01']},
+        {id:'STORE-03', org:'ORG-W2', runBy:'PARTNER',  name:'Mobile industrial store',     area:'Alabama',   post:'36607', lat:30.6954, lng:-88.0399, pallets:1200, chilled:true,  disasters:['DIS-03']},
+        {id:'STORE-04', org:'ORG-W1', runBy:'PLATFORM', name:'Beaumont coastal depot',      area:'Texas',     post:'77705', lat:30.0402, lng:-94.1066, pallets:1600, chilled:false, disasters:['DIS-01']},
+        {id:'STORE-05', org:'ORG-R1', runBy:'RELIEF',   name:'Lafayette forward store',     area:'Louisiana', post:'70508', lat:30.1841, lng:-92.0198, pallets:180,  chilled:false, disasters:['DIS-01']}
       ],
       items:[
         {id:'IT-01', code:'RICE-10', name:'Rice, 10 lb',                 group:'Staple',  unit:'bag',  kg:4.54, keeps:false},
@@ -1141,6 +1193,12 @@ var CALC = {
   daysLeft: function (useBy, fromMs) {
     if (!useBy) return null;
     return Math.round((new Date(useBy).getTime() - (fromMs || Date.now())) / 86400000);
+  },
+
+  /* whole days between two points, always positive — for "ran 9 days",
+     "closed 4 days ago" */
+  daysBetween: function (a, b) {
+    return Math.round(Math.abs(new Date(b).getTime() - new Date(a).getTime()) / 86400000);
   },
 
   /* how much of what was asked for actually arrived */
@@ -1835,14 +1893,17 @@ var U = (function () {
     shelter:  '<path d="M11 4 L3 20 h16 Z"/><line x1="11" y1="4" x2="11" y2="20"/>',
     people:   '<circle cx="8" cy="8" r="3"/><path d="M2 19 a6 6 0 0 1 12 0"/><path d="M15 6.6 a3 3 0 0 1 0 5.8"/><path d="M16.5 14 a5.5 5.5 0 0 1 3.5 5"/>',
     log:      '<line x1="9" y1="6" x2="19" y2="6"/><line x1="9" y1="11" x2="19" y2="11"/><line x1="9" y1="16" x2="19" y2="16"/><polyline points="3,6 4.4,7.4 6,4.8"/><polyline points="3,11 4.4,12.4 6,9.8"/><polyline points="3,16 4.4,17.4 6,14.8"/>',
-    archive:  '<rect x="3" y="4" width="16" height="4"/><path d="M5 8 v11 h12 V8"/><line x1="9" y1="12" x2="13" y2="12"/>'
+    archive:  '<rect x="3" y="4" width="16" height="4"/><path d="M5 8 v11 h12 V8"/><line x1="9" y1="12" x2="13" y2="12"/>',
+    more:     '<circle cx="11" cy="4.5" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.5" r="1.6"/>'
   };
 
-  /* size 20 by default; 24 minimum drawn size on a phone */
-  function ico(name, size) {
+  /* size 20 by default; 24 minimum drawn size on a phone. cls adds a class —
+     'filled' for the handful of icons (like 'more') that read as dots or
+     solid shapes rather than an outline. */
+  function ico(name, size, cls) {
     var s = size || 20;
     var n = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    n.setAttribute('class', 'ico');
+    n.setAttribute('class', 'ico' + (cls ? ' ' + cls : ''));
     n.setAttribute('viewBox', '0 0 22 22');
     n.setAttribute('width', s); n.setAttribute('height', s);
     n.setAttribute('aria-hidden', 'true');
@@ -2415,7 +2476,7 @@ function addScreen(id, name, draw) { SCREENS[id] = { id: id, name: name, draw: d
 function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
 
 /* Not yet designed. Kept honest: says so plainly, and stays navigable. */
-[ ['network','Network'], ['disasters','Disasters'], ['orgs','Organisations'],
+[ ['network','Network'], ['orgs','Organisations'],
   ['stores','{Stores}'], ['people','People'], ['fleet','Drivers & fleets'],
   ['history','What happened'],
 
@@ -2443,6 +2504,214 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
       U.later(words(s[1]))
     ]);
   });
+});
+
+/* ------------------------------------------------------------------------------
+   Disasters — Super Admin's list. Search, three filters, card/table, an
+   empty state, and Live/Archived. Card option 1 from the review, chosen: a
+   faithful description rather than a progress report, plus its closed
+   variant. Module-level state (not in Store) — it is view preference, not
+   data, and it survives a repaint via the same focus-preservation paint()
+   now carries for any field marked data-keep-focus.
+   ------------------------------------------------------------------------------ */
+var disastersUI = { q: '', status: '', type: '', zone: '', view: 'card', tab: 'live' };
+
+function disasterOrgs(d) {
+  var seen = {};
+  Store.live('sites', function (s) { return s.disaster === d.id; })
+    .forEach(function (s) { seen[s.org] = true; });
+  return Object.keys(seen).length;
+}
+function disasterShelters(d) {
+  return Store.live('sites', function (s) { return s.disaster === d.id; }).length;
+}
+function disasterStores(d) {
+  return Store.live('stores', function (s) { return (s.disasters || []).indexOf(d.id) > -1; }).length;
+}
+
+addScreen('disasters', 'Disasters', function (c) {
+  var canManage = c.person.job === 'ADMIN';
+  var region = Store.place;
+
+  function matches(d) {
+    if (disastersUI.status && d.status !== disastersUI.status) return false;
+    if (disastersUI.type && d.kind !== disastersUI.type) return false;
+    if (disastersUI.zone && d.zone !== disastersUI.zone) return false;
+    var q = disastersUI.q.trim().toLowerCase();
+    if (q && (d.name + ' ' + (d.zone || '')).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }
+
+  var pool = disastersUI.tab === 'archived' ? Store.archivedIn('disasters') : Store.live('disasters');
+  var rows = pool.filter(matches).slice()
+    .sort(function (a, b) { return new Date(b.declared) - new Date(a.declared); });
+
+  function clearFilters() {
+    disastersUI.q = ''; disastersUI.status = ''; disastersUI.type = ''; disastersUI.zone = '';
+    c.again();
+  }
+
+  function archiveDisaster(d) {
+    U.confirm({
+      title: 'Archive ' + d.name + '?',
+      detail: 'It moves out of the main list. Nothing is deleted — it waits in Archived and can be brought back from there or from here.',
+      yes: 'Archive', risky: true,
+      onYes: function () {
+        Store.archive('disasters', d.id, c.person.id, 'Archived from the Disasters list');
+        U.brief('Archived', d.name + ' moved to Archived.', 'good');
+        c.again();
+      }
+    });
+  }
+  function restoreDisaster(d) {
+    U.confirm({
+      title: 'Bring ' + d.name + ' back?',
+      detail: 'It reappears in the main list.',
+      yes: 'Bring back',
+      onYes: function () {
+        Store.unarchive('disasters', d.id, c.person.id);
+        U.brief('Back in the list', d.name + ' is live again.', 'good');
+        c.again();
+      }
+    });
+  }
+
+  /* the one action a disaster's menu offers right now. A single-purpose
+     icon button rather than a fake dropdown with one entry in it. */
+  function moreButton(d) {
+    if (!canManage) return null;
+    var forArchive = disastersUI.tab !== 'archived';
+    var label = (forArchive ? 'Archive ' : 'Bring back ') + d.name;
+    return U.el('button', { class: 'icon-btn', title: label, 'aria-label': label,
+      onclick: function () { forArchive ? archiveDisaster(d) : restoreDisaster(d); } },
+      [ U.ico('more', 16, 'filled') ]);
+  }
+
+  function statusChip(d) {
+    return U.chip(disasterStatusWord(d.status), d.status === 'ACTIVE' ? 'hold' : null);
+  }
+
+  function disasterCard(d) {
+    var closed = d.status === 'CLOSED';
+    var kids = [
+      U.el('div', { class: 'd-card__top' }, [
+        U.el('div', { class: 'd-card__id' }, [
+          U.el('p', { class: 'd-name', text: d.name }),
+          U.el('p', { class: 'd-where', text: d.zone })
+        ]),
+        moreButton(d)
+      ]),
+      U.el('div', { class: 'line wrap', style: 'margin-top:10px' }, [ U.chip(d.kind), statusChip(d) ]),
+      U.el('div', { class: 'd-hero' }, [
+        U.el('b', { text: FMT.count(d.peopleAffected) }),
+        U.el('span', { text: 'people affected' })
+      ]),
+      U.el('div', { class: 'rows three' }, [
+        U.figure(FMT.count(disasterOrgs(d)), T('orgs')),
+        U.figure(FMT.count(disasterShelters(d)), T('sites')),
+        U.figure(FMT.count(disasterStores(d)), T('stores'))
+      ])
+    ];
+    if (closed && d.closedAt) {
+      kids.push(U.el('div', { class: 'd-foot' }, [
+        U.ico('tick', 14),
+        U.el('span', { text: 'Closed ' + FMT.count(CALC.daysBetween(d.closedAt, Date.now())) + ' days ago · ran ' +
+          FMT.count(CALC.daysBetween(d.declared, d.closedAt)) + ' days' })
+      ]));
+    }
+    return U.el('article', { class: 'box d-card' + (closed ? ' closed' : '') }, kids);
+  }
+
+  function tableView() {
+    return U.grid({
+      about: 'Disasters',
+      cols: [
+        { label: 'Name', cell: function (d) { return U.el('b', { text: d.name }); } },
+        { label: 'Type', cell: function (d) { return d.kind; } },
+        { label: T('area'), cell: function (d) { return d.zone; } },
+        { label: 'Status', cell: statusChip },
+        { label: T('orgs'), cell: function (d) { return FMT.count(disasterOrgs(d)); }, figs: true },
+        { label: T('sites'), cell: function (d) { return FMT.count(disasterShelters(d)); }, figs: true },
+        { label: T('stores'), cell: function (d) { return FMT.count(disasterStores(d)); }, figs: true },
+        { label: 'People affected', cell: function (d) { return FMT.count(d.peopleAffected); }, figs: true },
+        { label: '', cell: function (d) { return moreButton(d); } }
+      ],
+      rows: rows
+    });
+  }
+
+  function toolbar() {
+    var searchField = U.line({ value: disastersUI.q, hint: 'Search by name or ' + t('area'),
+      onType: function (e) { disastersUI.q = e.target.value; c.again(); } });
+    searchField.setAttribute('data-keep-focus', 'disasters-search');
+
+    function filter(label, value, options, onSet) {
+      return U.ask({ label: label, field: U.choose({
+        value: value, options: [{ value: '', label: 'All' }].concat(options),
+        onSet: function (e) { onSet(e.target.value); c.again(); }
+      }) });
+    }
+
+    return U.el('div', { class: 'line wrap', style: 'align-items:flex-end;gap:12px;margin-bottom:16px' }, [
+      U.ask({ label: 'Search', field: searchField }),
+      filter('Status', disastersUI.status,
+        [{ value: 'ACTIVE', label: 'Ongoing' }, { value: 'CLOSED', label: 'Closed' }],
+        function (v) { disastersUI.status = v; }),
+      filter('Type', disastersUI.type,
+        DISASTER_TYPES.map(function (k) { return { value: k, label: k }; }),
+        function (v) { disastersUI.type = v; }),
+      filter(T('area'), disastersUI.zone,
+        region.areaList.map(function (z) { return { value: z, label: z }; }),
+        function (v) { disastersUI.zone = v; }),
+      U.el('span', { class: 'fill' }),
+      canManage ? U.btn('Add ' + t('disaster'), { icon: 'plus', look: 'go', onTap: function () {
+        U.brief('Not built yet', 'The two-step add-a-' + t('disaster') + ' flow is next.', 'note');
+      } }) : null
+    ]);
+  }
+
+  function segmented(label, value, options, onSet) {
+    var lid = U.newId('lbl-dseg');
+    return U.el('div', { class: 'grp' }, [
+      U.el('span', { class: 'cap', id: lid, text: label }),
+      U.el('div', { class: 'pick', role: 'group', 'aria-labelledby': lid }, options.map(function (o) {
+        return U.el('button', { 'aria-pressed': String(value === o.value),
+          onclick: function () { onSet(o.value); c.again(); } }, [o.label]);
+      }))
+    ]);
+  }
+
+  var archivedCount = Store.archivedIn('disasters').length;
+  var toggles = U.el('div', { class: 'line wrap', style: 'gap:20px;margin-bottom:20px' }, [
+    c.view === 'desk' ? segmented('View', disastersUI.view,
+      [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
+      function (v) { disastersUI.view = v; }) : null,
+    segmented('Show', disastersUI.tab,
+      [{ value: 'live', label: 'Live' },
+       { value: 'archived', label: 'Archived' + (archivedCount ? ' (' + FMT.count(archivedCount) + ')' : '') }],
+      function (v) { disastersUI.tab = v; })
+  ]);
+
+  var body;
+  if (!pool.length) {
+    body = disastersUI.tab === 'archived'
+      ? U.none({ headline: 'Nothing archived', detail: 'When you archive a ' + t('disaster') + ', it waits here and can be brought back.' })
+      : U.none({ headline: 'No ' + t('disasters') + ' yet', detail: 'Nothing has been declared for ' + region.name + '.' });
+  } else if (!rows.length) {
+    body = U.none({ headline: 'Nothing matches', detail: 'Try a different search, or clear the filters.',
+      doThis: U.btn('Clear filters', { size: 'small', onTap: clearFilters }) });
+  } else if (c.view === 'desk' && disastersUI.view === 'table') {
+    body = tableView();
+  } else {
+    body = U.el('div', { class: 'd-grid' }, rows.map(disasterCard));
+  }
+
+  return U.el('div', { class: 'm-page' }, [
+    U.el('h1', { class: 't1', text: T('disasters') }),
+    toolbar(),
+    toggles,
+    body
+  ]);
 });
 
 /* ------------------------------------------------------------------------------
@@ -3154,6 +3423,18 @@ var Shell = (function () {
     var held = toTop ? {} : KEEP.reduce(function (a, sel) {
       var n = root.querySelector(sel); if (n) a[sel] = n.scrollTop; return a; }, {});
 
+    /* A screen re-renders whole, not diffed — so typing into a live-filtering
+       search box would lose focus after every character, since the input is
+       destroyed and rebuilt. Any field marked data-keep-focus survives that:
+       its value is already right (state drives it), only focus and the
+       cursor position need carrying across. */
+    var keepId = null, keepStart = null, keepEnd = null;
+    var ae = document.activeElement;
+    if (ae && root.contains(ae) && ae.dataset && ae.dataset.keepFocus) {
+      keepId = ae.dataset.keepFocus;
+      keepStart = ae.selectionStart; keepEnd = ae.selectionEnd;
+    }
+
     empty(root);
     var c = context();
     root.appendChild(el('div', { class: 'col', style: 'height:100%' }, [
@@ -3164,6 +3445,11 @@ var Shell = (function () {
     if (!toTop) KEEP.forEach(function (sel) {
       var n = root.querySelector(sel); if (n && held[sel]) n.scrollTop = held[sel]; });
     toTop = false;
+    if (keepId) {
+      var na = root.querySelector('[data-keep-focus="' + keepId + '"]');
+      if (na) { na.focus(); if (na.setSelectionRange && keepStart != null) {
+        try { na.setSelectionRange(keepStart, keepEnd); } catch (e) {} } }
+    }
     fit(); writeAddress();
   }
 
@@ -3423,6 +3709,7 @@ window.GN = {
   activeViews:activeViews,
 
   TERMS:TERMS, T:T, t:t, JOBS:JOBS, STATUS:STATUS, statusWord:statusWord,
+  DISASTER_STATUS:DISASTER_STATUS, disasterStatusWord:disasterStatusWord, DISASTER_TYPES:DISASTER_TYPES,
   REGIONS:REGIONS, makeStock:makeStock,
   CALC:CALC, Store:Store, FMT:FMT, SIM:SIM, A11Y:A11Y, MOTION:MOTION, DEVICES:DEVICES,
   U:U, PEOPLE_VIEWS:PEOPLE_VIEWS, SCREENS:SCREENS, addScreen:addScreen, screenName:screenName,
