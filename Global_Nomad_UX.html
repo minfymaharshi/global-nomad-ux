@@ -2782,6 +2782,9 @@ addScreen('disasters', 'Disasters', function (c) {
    icon button, not a panel: a menu with one item in it is not a menu.
    ------------------------------------------------------------------------------ */
 var STORE_RUNBY_WORD = { PLATFORM: 'Platform', PARTNER: 'Partner', RELIEF: 'Relief org' };
+/* named, not written into the form itself — matches how SIM.waits named
+   the simulated delays instead of leaving raw numbers in a screen */
+var STORE_PALLETS_DEFAULT = 500, STORE_PALLETS_MAX = 100000, STORE_PALLETS_STEP = 50;
 var storesUI = { q: '', runBy: '', zone: '', view: 'card' };
 
 function storeDrivers(st) { return Store.live('drivers', function (d) { return d.store === st.id; }).length; }
@@ -2806,9 +2809,75 @@ addScreen('stores', '{Stores}', function (c) {
   function clearFilters() {
     storesUI.q = ''; storesUI.runBy = ''; storesUI.zone = ''; c.again();
   }
-  function editStore(st) {
-    U.brief('Not built yet', 'The add-a-' + t('store') + ' flow, in edit mode — next.', 'note');
+
+  /* One form, two doors in: a blank one from "Add warehouse", a filled-in
+     one from a card's Edit. Fields read straight off the DOM at submit —
+     nothing here redraws per keystroke, so none of the focus-preservation
+     paint() carries for the search box is needed. The only real validation
+     is the name; every select defaults to a real choice already, and
+     capacity can't reach zero, so there is nothing else to get wrong. */
+  function openStoreForm(existing) {
+    var liveOrgs = Store.live('orgs');
+    var nameField = U.line({ value: existing ? existing.name : '', hint: 'e.g. Beaumont coastal depot' });
+    var areaField = U.choose({ value: existing ? existing.area : region.areaList[0],
+      options: region.areaList.map(function (z) { return { value: z, label: z }; }) });
+    var runByField = U.choose({ value: existing ? existing.runBy : 'PLATFORM',
+      options: Object.keys(STORE_RUNBY_WORD).map(function (k) { return { value: k, label: STORE_RUNBY_WORD[k] }; }) });
+    var orgField = U.choose({ value: existing ? existing.org : (liveOrgs[0] && liveOrgs[0].id),
+      options: liveOrgs.map(function (o) { return { value: o.id, label: o.name }; }) });
+    var palletsField = U.howMany({ value: existing ? existing.pallets : STORE_PALLETS_DEFAULT,
+      low: 1, high: STORE_PALLETS_MAX, step: STORE_PALLETS_STEP, spoken: 'Pallets of capacity' });
+    var chilledField = U.tick({ on: existing ? !!existing.chilled : false, label: 'Chilled storage' });
+    var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true });
+
+    var mid = U.el('div', { style: 'display:flex;flex-direction:column;gap:14px' }, [
+      nameWrap,
+      U.ask({ label: T('area'), field: areaField }),
+      U.ask({ label: 'Runs it', field: runByField }),
+      U.ask({ label: 'Organisation', field: orgField }),
+      U.ask({ label: 'Capacity, in pallets', field: palletsField }),
+      chilledField
+    ]);
+
+    var win = U.panel({
+      title: existing ? 'Edit ' + existing.name : 'Add ' + t('store'),
+      body: mid,
+      doThis: [
+        U.btn('Cancel', { onTap: function () { U.shut(); } }),
+        U.btn(existing ? 'Save' : 'Add', { look: 'go', onTap: function () {
+          var name = nameField.value.trim();
+          if (!name) {
+            var freshWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: 'This needs a name.' });
+            nameWrap.replaceWith(freshWrap);
+            nameWrap = freshWrap;
+            nameField.focus();
+            return;
+          }
+          var fields = { name: name, area: areaField.value, runBy: runByField.value,
+            org: orgField.value, pallets: palletsField.read(), chilled: !!chilledField.querySelector('input').checked };
+          Store.change(function (now) {
+            if (existing) {
+              var r = now.stores.filter(function (x) { return x.id === existing.id; })[0];
+              if (r) { Object.keys(fields).forEach(function (k) { r[k] = fields[k]; }); }
+              Store.note('Edited', T('store') + ' ' + name, c.person.id);
+            } else {
+              var made = { id: Store.nextId('STORE'), disasters: [], archived: false, archivedAt: null,
+                archivedBy: null, archiveWhy: null, addedBy: c.person.id, addedByOrg: c.person.org,
+                fromCatalogue: true };
+              Object.keys(fields).forEach(function (k) { made[k] = fields[k]; });
+              now.stores.push(made);
+              Store.note('Added', T('store') + ' ' + name, c.person.id);
+            }
+          });
+          U.shut();
+          U.brief(existing ? 'Saved' : 'Added', name + (existing ? ' is updated.' : ' is on the list.'), 'good');
+          c.again();
+        } })
+      ]
+    });
   }
+
+  function editStore(st) { openStoreForm(st); }
 
   function moreButton(st) {
     if (!canManage) return null;
@@ -2879,9 +2948,7 @@ addScreen('stores', '{Stores}', function (c) {
         region.areaList.map(function (z) { return { value: z, label: z }; }),
         function (v) { storesUI.zone = v; }),
       U.el('span', { class: 'fill' }),
-      canManage ? U.btn('Add ' + t('store'), { icon: 'plus', look: 'go', onTap: function () {
-        U.brief('Not built yet', 'The add-a-' + t('store') + ' flow is next.', 'note');
-      } }) : null
+      canManage ? U.btn('Add ' + t('store'), { icon: 'plus', look: 'go', onTap: function () { openStoreForm(null); } }) : null
     ]);
   }
 

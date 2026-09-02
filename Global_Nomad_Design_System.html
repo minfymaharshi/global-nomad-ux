@@ -1114,6 +1114,32 @@ body[data-face="mob"] .d-foot { font-size:13px; }
       <dt>For developers — typing without losing focus</dt><dd>A live-filtering search box redraws the list on every keystroke, and this kit's screens redraw whole rather than diff. Without help, the input node is destroyed and rebuilt each time and loses focus after one character. Any field marked <code>data-keep-focus="…"</code> survives a redraw: its value is already correct because state drives it, and <code>paint()</code> now restores focus and the cursor position to whichever element carries a matching value after every repaint.</dd>
     </dl></div>
   </article>
+
+  <!-- ------------------------------------------------------------ form panel -->
+  <article class="entry">
+    <div class="entry__top"><h3>Form panel</h3><code>panel()</code>
+      <p class="entry__why">Add or edit a record in place, without leaving the
+        list. One form serves both — Edit opens it pre-filled, Add opens it
+        blank — so there is only ever one place to keep a record's fields
+        right.</p></div>
+    <div class="demo stack">
+      <div class="box" style="max-width:360px;padding:var(--sp5)">
+        <h2 style="margin:0 0 16px;font-size:17px">Add warehouse</h2>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="ask bad m-wrong"><label class="ask__label">Name <span aria-hidden="true">*</span><span class="vh"> needed</span></label><input class="in" aria-invalid="true"><p class="wrong">This needs a name.</p></div>
+          <div class="ask"><label class="ask__label">State</label><select class="sel"><option>Texas</option></select></div>
+        </div>
+        <div class="line" style="justify-content:flex-end;gap:8px;margin-top:20px"><button class="btn">Cancel</button><button class="btn go">Add</button></div>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Fields, not a wizard</dt><dd>Panel forms in this kit are unstructured DOM elements read directly at submit — <code>input.value</code>, a <code>howMany()</code> field's own <code>.read()</code>. Nothing in the field's own typing needs to trigger a redraw, because nothing else on screen depends on it until Add or Save is pressed. That is what makes a form panel simpler to build than the search box above: no <code>data-keep-focus</code> needed here, because the panel is never rebuilt out from under itself.</dd>
+      <dt>One required field, by design</dt><dd>Every select defaults to a real, valid choice; a number field's own floor keeps it from ever reaching an invalid value. That leaves the name as the only thing that can actually be missing — one validation to get right, rather than five to maintain.</dd>
+      <dt>A failed submit</dt><dd>Rebuilds only the one field's label-and-message wrapper — <code>nameWrap.replaceWith(freshWrap)</code> — not the whole panel. The typed value stays exactly as typed, in the same input node, and focus returns to it. <code>aria-invalid</code> is set on the field itself, not only implied by red text.</dd>
+      <dt>For developers</dt><dd>Every new record is stamped the same way seed data is — <code>addedBy</code>, <code>addedByOrg</code>, <code>fromCatalogue</code>, plus the full archive family (<code>archived: false</code> and its three companions) — set directly rather than through the internal <code>stamp()</code> helper, which is not exposed outside <code>Store</code>.</dd>
+      <dt>For developers — the history line has to be inside the write</dt><dd><code>Store.note()</code> only ever mutates <code>now.history</code> in memory — nothing about it persists or notifies. Called inside the same <code>Store.change(fn)</code> that mutates the record, the wrapper's own <code>write()</code>+<code>tell()</code> covers both at once. Called standalone after that block instead, the screen still redraws correctly — it reads the same in-memory object either way — which is exactly what hides the mistake until a reload silently drops the history line. Caught here before it shipped; see <code>VERSION_HISTORY.md</code>.</dd>
+    </dl></div>
+  </article>
 </section>
 
 <section id="patterns">
