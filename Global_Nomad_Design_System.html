@@ -28,7 +28,8 @@
 <style>
 :root {
   --bg:#E9EAEC; --paper:#FFFFFF; --paper-2:#F5F6F7; --paper-3:#ECEEEF;
-  --rule:#C7CACE; --rule-soft:#DEE0E3; --edge:#7E848C;
+  --bar:#E0E2E5;
+  --rule:#C7CACE; --rule-soft:#DEE0E3; --edge:#7A8088;
   --text:#1C1F22; --text-2:#474C51; --text-3:#656A70; --ghost:#A5AAB0;
   --solid:#2C3135; --on-solid:#FFFFFF;
   --good:#2E5E4B; --good-bg:#E8F0EC;
@@ -78,7 +79,7 @@ main { min-width:0; }
 .top { position:sticky; top:0; z-index:20; background:var(--paper-3);
   border-bottom:1px solid var(--edge); padding:var(--sp3) clamp(20px,4vw,52px);
   display:flex; align-items:center; gap:var(--sp4); flex-wrap:wrap; }
-.cap { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+.cap { font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
 .pick { display:inline-flex; background:var(--paper); border:1px solid var(--edge);
   border-radius:var(--r2); padding:2px; }
 .pick button { background:none; border:0; border-radius:var(--r1); padding:0 16px;
@@ -260,7 +261,7 @@ function tokenValue(n){ return getComputedStyle(document.documentElement).getPro
 @keyframes spin { to { transform:rotate(360deg); } }
 body[data-face="mob"] .demo .btn { min-height:var(--tap-mob); min-width:var(--tap-mob); }
 
-.chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:650;
+.chip { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:650;
   padding:2px 8px; border-radius:var(--round); border:1px solid var(--edge);
   color:var(--text-2); white-space:nowrap; }
 .chip.good { border-color:var(--good); color:var(--good); background:var(--good-bg); }
@@ -279,12 +280,12 @@ body[data-face="mob"] .demo .chip { font-size:12px; padding:3px 9px; }
 .box__end { padding:var(--sp3) var(--sp4); border-top:1px solid var(--rule-soft);
   background:var(--paper-2); display:flex; gap:var(--sp2); align-items:center; flex-wrap:wrap; }
 .figure b { display:block; font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; }
-.figure span { display:block; font-size:11.5px; color:var(--text-3); margin-top:1px; }
+.figure span { display:block; font-size:12px; color:var(--text-3); margin-top:1px; }
 
 .ask { display:block; margin:0 0 var(--sp4); min-width:240px; }
 .ask__label { display:block; font-size:12.5px; font-weight:650; margin-bottom:5px; }
 body[data-face="mob"] .demo .ask__label { font-size:14px; }
-.ask .tip { font-size:11.5px; color:var(--text-3); margin:4px 0 0; }
+.ask .tip { font-size:12px; color:var(--text-3); margin:4px 0 0; }
 .ask .wrong { font-size:12px; color:var(--stop); margin:5px 0 0; display:flex; gap:5px;
   align-items:flex-start; font-weight:500; }
 .in,.sel,.note-in { width:100%; min-height:var(--tap); background:var(--paper);
@@ -300,7 +301,7 @@ body[data-face="mob"] .demo .in, body[data-face="mob"] .demo .sel { min-height:v
 body[data-face="mob"] .demo .num-set button { min-width:var(--tap-mob); min-height:var(--tap-mob); }
 .tick { display:flex; gap:var(--sp2); align-items:flex-start; min-height:var(--tap); }
 .tick input { margin:3px 0 0; width:18px; height:18px; }
-.tick small { display:block; color:var(--text-3); font-size:11.5px; }
+.tick small { display:block; color:var(--text-3); font-size:12px; }
 
 .say { display:flex; gap:var(--sp3); align-items:flex-start; flex-wrap:wrap;
   border:1px solid var(--edge); border-left-width:4px; border-radius:var(--r2);
@@ -324,13 +325,13 @@ body[data-face="mob"] .demo .num-set button { min-width:var(--tap-mob); min-heig
 .none { border:1px dashed var(--edge); border-radius:var(--r2); padding:var(--sp6) var(--sp5);
   text-align:center; background:var(--paper-2); width:100%; }
 .none b { display:block; font-size:14px; font-weight:650; }
-.none p { margin:6px auto 0; font-size:13px; color:var(--text-3); max-width:44ch; }
+.none p { margin:6px auto 0; font-size:13px; color:var(--text-3); max-width:46ch; }
 .bone { background:var(--paper-3); border-radius:var(--r1); animation:pulse 1.3s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
 
 .steps { display:flex; gap:0; margin:0; padding:0; list-style:none; flex-wrap:wrap; width:100%; }
 .steps li { flex:1 1 130px; border-top:3px solid var(--rule); padding:var(--sp2) var(--sp3) 0 0; }
-.steps li b { display:block; font-family:var(--figs); font-size:10.5px; color:var(--text-3); }
+.steps li b { display:block; font-family:var(--figs); font-size:12px; color:var(--text-3); }
 .steps li span { display:block; font-size:12.5px; color:var(--text-3); }
 .steps li.was { border-top-color:var(--text-2); }
 .steps li.was b,.steps li.was span { color:var(--text-2); }
@@ -343,13 +344,37 @@ body[data-face="mob"] .demo .num-set button { min-width:var(--tap-mob); min-heig
   transform-origin:left center; transition:transform var(--m-page) var(--ease); }
 
 table.grid { border-collapse:collapse; width:100%; font-size:13px; }
-table.grid th { text-align:left; font-size:11px; font-weight:650; letter-spacing:.05em;
+table.grid th { text-align:left; font-size:12px; font-weight:650; letter-spacing:.05em;
   text-transform:uppercase; color:var(--text-3); padding:9px 12px;
   border-bottom:1px solid var(--rule); background:var(--paper-2); }
 table.grid td { padding:9px 12px; border-bottom:1px solid var(--rule-soft); }
 table.grid tbody tr:last-child td { border-bottom:0; }
 .figs-col { text-align:right; font-variant-numeric:tabular-nums; }
 .grid-wrap { border:1px solid var(--rule); border-radius:var(--r2); background:var(--paper); width:100%; overflow-x:auto; }
+
+/* person mark — a person is a circle, a thing is a rectangle.
+   These declarations are copied from the product, not written fresh. If the
+   product changes, change them here in the same commit or this page lies. */
+.tag2 { flex:0 0 28px; width:28px; height:28px; border-radius:50%;
+  background:var(--solid); color:var(--on-solid);
+  display:grid; place-items:center; font-size:12px; font-weight:700;
+  letter-spacing:.02em; }
+body[data-face="mob"] .tag2 { flex-basis:32px; width:32px; height:32px; }
+
+/* foldable section */
+details.fold { border:1px solid var(--rule); border-radius:var(--r2);
+  background:var(--paper); width:100%; }
+details.fold > summary { cursor:pointer; list-style:none; min-height:var(--tap);
+  display:flex; align-items:center; gap:10px; padding:6px 12px;
+  font-size:13.5px; font-weight:650; color:var(--text); }
+details.fold > summary::-webkit-details-marker { display:none; }
+details.fold > summary::marker { content:''; }
+details.fold > summary:hover { background:var(--paper-2); }
+details.fold > summary .ico { transition:transform var(--m-tap) var(--ease); }
+details.fold[open] > summary .ico { transform:rotate(180deg); }
+details.fold[open] > summary { border-bottom:1px solid var(--rule-soft); }
+details.fold .fold__body { padding:var(--sp4); }
+body[data-face="mob"] details.fold > summary { min-height:var(--tap-mob); font-size:15px; }
 </style>
 
 <div class="wrap">
@@ -690,8 +715,10 @@ table.grid tbody tr:last-child td { border-bottom:0; }
       <dt>Current page</dt><dd>Boxed: white fill, a 1px edge, and the label goes to 650. Three signals, so it does not depend on one.</dd>
       <dt>Folding</dt><dd><b>No animation.</b> Animating a width makes the browser redo layout every frame. It snaps, and the movement check enforces that.</dd>
       <dt>Folded labels</dt><dd>Each icon keeps its label for a screen reader and as a hover tooltip. An icon alone is never the only clue.</dd>
-      <dt>Access</dt><dd>A real <code>&lt;nav&gt;</code> with a name. Current item marked <code>aria-current="page"</code>. The fold button reports <code>aria-expanded</code>. Unread counts read as “Alerts, 2 unread”, not “2”.</dd>
-      <dt>For developers</dt><dd>The bell borrows the item's look but not its full width — it is sized on its own. Letting it inherit <code>width:100%</code> squashed the name beside it to 8px, which no colour or size check would have caught.</dd>
+      <dt>Unread alerts</dt><dd>An <b>8px dot</b> at the bell's top right — not a number. At the sizes a bell is drawn, a two-digit count is smaller than the text floor and turns the icon into a smudge. The dot answers the only question a glance asks: is there anything new? The count itself belongs on the Alerts page, where there is room to say what the alerts are.</dd>
+      <dt>Dot colour</dt><dd><code>--solid</code>, the same dark neutral as body text, with a <b>2px</b> ring in the surface colour so it reads against the icon. Not a warning colour: at wireframe stage nothing may carry meaning by colour alone, and “there is something new” is not the same as “something is wrong”.</dd>
+      <dt>Access</dt><dd>A real <code>&lt;nav&gt;</code> with a name. Current item marked <code>aria-current="page"</code>. The fold button reports <code>aria-expanded</code>. The dot is <code>aria-hidden</code>; the number still reaches a screen reader through the link's own text — “Alerts, 2 unread”, never “2”. Losing the badge must not lose the count.</dd>
+      <dt>For developers</dt><dd>The bell borrows the item's look but not its full width — it is sized on its own. Letting it inherit <code>width:100%</code> squashed the name beside it to 8px, which no colour or size check would have caught. The dot is positioned inside the bell, so it cannot push the row wider.</dd>
     </dl></div>
   </article>
 
@@ -909,11 +936,96 @@ table.grid tbody tr:last-child td { border-bottom:0; }
       <dt>For developers</dt><dd>Distinguish empty from failed from still-loading. Three different states, three different components.</dd>
     </dl></div>
   </article>
+
+  <!-- ------------------------------------------------------- person mark -->
+  <article class="entry">
+    <div class="entry__top"><h3>Person mark</h3><code>.tag2</code>
+      <p class="entry__why">Stands in for someone's picture. Two initials in a
+        circle, used wherever a person is named — the control bar, the foot of
+        the side list, a row in a list of people.</p></div>
+    <div class="demo">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span class="tag2">PA</span><span class="tag2">RL</span><span class="tag2">WM</span><span class="tag2">DR</span>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>Shape</dt><dd><b>Always a circle</b> — <code>border-radius:50%</code>. A person is a circle and a thing is a rectangle; keeping that split means you can tell at a glance whether a row is about a person or about a record. A square mark reads as a logo or a thumbnail.</dd>
+      <dt>Size</dt><dd><b>28px</b> in a bar or a list row, <b>36px</b> where it is the main subject. Width and height always equal, so a long name cannot stretch it into an oval.</dd>
+      <dt class="only-mob">On a phone</dt><dd class="only-mob"><b>32px</b> minimum, and never the only touch target — the whole row it sits in is the target.</dd>
+      <dt>Initials</dt><dd>Two letters, uppercase, from the person's role rather than their name, so the same mark is stable when a name is missing.</dd>
+      <dt>Access</dt><dd>Decoration. It is <code>aria-hidden</code> and the person's name sits beside it as real text. Initials alone are never the only way to tell who someone is.</dd>
+      <dt>For developers</dt><dd>Set <code>flex:0 0 &lt;size&gt;</code> as well as width and height. Without the flex basis a tight row shrinks it into an ellipse, which no check will report because nothing has overflowed.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ---------------------------------------------------- foldable section -->
+  <article class="entry">
+    <div class="entry__top"><h3>Foldable section</h3><code>details.fold</code>
+      <p class="entry__why">A part of a page that is worth keeping but not worth
+        reading every time. Housekeeping lists, long records, anything a person
+        needs occasionally and would otherwise have to scroll past.</p></div>
+    <div class="demo stack">
+      <details class="fold">
+        <summary><svg class="ico" viewBox="0 0 22 22" width="16" height="16" aria-hidden="true" focusable="false"><path d="M5 8 l6 6 6 -6"></path></svg><span>11 pages</span><span class="fill"></span></summary>
+        <div class="fold__body"><p style="margin:0">The list sits here, closed until someone asks for it.</p></div>
+      </details>
+    </div>
+    <div class="spec"><dl>
+      <dt>Built on</dt><dd>A real <code>&lt;details&gt;</code> and <code>&lt;summary&gt;</code>. Keyboard, screen reader and find-in-page all work without a line of script.</dd>
+      <dt>Summary</dt><dd><b>32px</b> tall minimum, a caret then the label. The label says how much is inside — “11 pages”, not “Show more”, so someone can decide whether to open it.</dd>
+      <dt class="only-mob">On a phone</dt><dd class="only-mob">Summary <b>44px</b> tall, label 15px.</dd>
+      <dt>Caret</dt><dd>Rotates 180° over <b>120ms</b>, the tap movement. A transform, so no layout work. The body itself does not animate — its height is unknown until it is open, and animating an unknown height is how a list of 200 rows drops frames.</dd>
+      <dt>Closed by default</dt><dd>Anything folded starts closed, and the page must make sense without opening it. Never fold something a person needs in order to finish the task in front of them.</dd>
+      <dt>Wording</dt><dd>No note saying “closed by default” or “click to expand”. The caret already says it. A label that explains the control instead of the content is wasted.</dd>
+      <dt>Access</dt><dd><code>&lt;summary&gt;</code> reports its own expanded state — do not add <code>aria-expanded</code>, and do not put a heading inside it and a second one above it.</dd>
+      <dt>For developers</dt><dd>The body may scroll, and <code>.fold__body</code> is on the list of regions allowed to. Anything else that scrolls inside a page is reported by <code>GN.CHECK.scrolls()</code>.</dd>
+    </dl></div>
+  </article>
 </section>
 
 <section id="patterns">
   <div class="shead"><b>08</b><h2>Patterns</h2></div>
   <p>How components go together for the things this product does over and over.</p>
+
+  <h3 class="only-web">The desktop app fills the window</h3>
+  <div class="only-web">
+    <p>On a desktop there is no frame around the app, no card, no border, no
+       shadow, and no caption describing it. The app <b>is</b> the window. Every
+       screen reflows to whatever width and height it is given, from a small
+       laptop to a wall display.</p>
+    <ul>
+      <li>Nothing carries a fixed width. Panels and lists take the space they are given.</li>
+      <li>Screens react to the <b>app's</b> width, not the window's, so a narrow panel on a wide screen behaves like a narrow screen. Below roughly 760px the side list becomes a sheet reached from a button.</li>
+      <li>Prose keeps a reading width — around <b>66ch</b> — and stops there. Data surfaces fill. A line of text 200 characters wide is unreadable no matter how much room there is.</li>
+      <li>No caption naming the person, their scope or their place. All three sit in the control bar above, and that is where they are changed. Saying it again on every screen is noise, and two copies drift apart.</li>
+    </ul>
+    <div class="callout"><b>One scroller per region</b>
+      <p>The page itself must never scroll — not sideways, not downward. Exactly
+         one region inside a screen scrolls, and it is the screen body. A second
+         scrollbar appearing inside a page means something has been given a
+         fixed height it did not need, and it costs a person their place on the
+         page. Only a short list of regions may scroll at all; anything else is
+         reported by <code>GN.CHECK.scrolls()</code>.</p></div>
+    <p><b>How it is built.</b> The stage, the app and the screen body are a
+       column of flex children, each with <code>min-height:0</code> so they can
+       be smaller than their content. The screen body is the only one with
+       <code>overflow-y:auto</code>. Leaving out <code>min-height:0</code> is
+       what makes a long page — the Archived page, for one — stretch the whole
+       app instead of scrolling inside it.</p>
+  </div>
+
+  <h3 class="only-mob">The phone app keeps its frame</h3>
+  <div class="only-mob">
+    <p>A phone is shown inside a device frame with the device name and the scale
+       it is drawn at, because a stakeholder needs to know they are looking at a
+       412px screen shown small, not a small app. That caption is deliberate,
+       and it is the one place a caption is kept.</p>
+    <ul>
+      <li>Standard device sizes, not fluid. The frame is the point.</li>
+      <li>The screen body is still the only scroller; the header and the bottom bar stay put.</li>
+      <li>Four main pages in a bottom bar with 44px targets. Everything else is reached from a sheet.</li>
+    </ul>
+  </div>
 
   <h3>Ask, then confirm</h3>
   <ol>
@@ -964,7 +1076,7 @@ table.grid tbody tr:last-child td { border-bottom:0; }
     <li>A page that no side list points at is <b>registered</b>, not orphaned — otherwise it is lost without anyone deciding to lose it.</li>
   </ul>
   <div class="callout"><b>Why it is worth the trouble</b>
-    <p>In an emergency, someone will archive the wrong warehouse at two in the
+    <p>In a disaster, someone will archive the wrong warehouse at two in the
        morning. The cost of a wrong delete is unrecoverable work; the cost of a
        wrong archive is one click.</p></div>
 
@@ -1018,7 +1130,8 @@ table.grid tbody tr:last-child td { border-bottom:0; }
       <tr><td>Movement</td><td>Every animation length, what each one moves, and that “reduce motion” is honoured</td><td class="f">GN.CHECK.motion()</td></tr>
       <tr><td>Links</td><td>Every side-list item leads somewhere, and every page is either reachable or recorded as out of sight</td><td class="f">GN.CHECK.pages()</td></tr>
       <tr><td>Sticking out</td><td>Anything extending past the app frame — how a squashed layout shows up, invisible to every other check</td><td class="f">part of GN.A11Y.audit()</td></tr>
-      <tr><td>All four</td><td>Everything above, one number</td><td class="f">GN.CHECK.all()</td></tr>
+      <tr><td>Stray scrolls</td><td>The page itself must never scroll, and nothing may scroll except the few regions allowed to. Catches a second scrollbar appearing inside a screen</td><td class="f">GN.CHECK.scrolls()</td></tr>
+      <tr><td>All of them</td><td>Everything above, one number</td><td class="f">GN.CHECK.all()</td></tr>
     </tbody>
   </table></div>
 
@@ -1183,12 +1296,16 @@ document.getElementById('ds-p').innerHTML = svgIcon('plus', 16);
   rows.forEach(function (r) {
     var v = tokenValue(r[0]);
     var c = ratio(v, white);
+    /* What a token is FOR decides what it has to reach. Surfaces are sat on,
+       not read, so a ratio is reported without a verdict. Say it as one list:
+       a chain of ifs is how --bar was judged against a bar it never had to
+       meet, and reported NaN before that. */
+    var SURFACE = ['--bg','--paper','--paper-2','--paper-3','--bar','--rule','--rule-soft'];
     var isText = /text|solid|good|hold|stop|note|ghost/.test(r[0]);
     var need = isText ? 4.5 : 3.0;
     var verdict = r[0] === '--ghost'
       ? '<span class="fail">' + c + '</span> — fails, decoration only'
-      : (r[0] === '--rule' || r[0] === '--rule-soft' || r[0] === '--bg' ||
-         r[0] === '--paper' || r[0] === '--paper-2' || r[0] === '--paper-3'
+      : (SURFACE.indexOf(r[0]) > -1
           ? c + ' — not used for text'
           : '<span class="' + (c >= need ? 'pass' : 'fail') + '">' + c + '</span>' +
             (c >= need ? ' ✓' : ' needs ' + need));

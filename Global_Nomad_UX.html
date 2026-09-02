@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Global Nomad</title>
-<meta name="description" content="Food delivery for emergencies. Working prototype — made-up data, real arithmetic, no server.">
+<meta name="description" content="Food delivery in disasters. Working prototype — made-up data, real arithmetic, no server.">
 <!--
 ================================================================================
  GLOBAL NOMAD — working prototype
@@ -227,10 +227,14 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   transition: background var(--m-tap) var(--ease);
 }
 .who__btn:hover { background: var(--paper-2); }
+/* A person is a circle, a thing is a rectangle. Width is set as well as the
+   flex basis: outside a flex row the basis does nothing and a two-letter mark
+   would size to its text, turning the circle into an oval. */
 .tag2 {
-  flex: 0 0 28px; height: 28px; border-radius: var(--r1);
+  flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%;
   background: var(--solid); color: var(--on-solid);
   display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  letter-spacing: .02em;
 }
 .who__name { flex: 1 1 auto; min-width: 0; }
 .who__name b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.2; }
@@ -268,7 +272,7 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   box-shadow: var(--lift-1); animation: m-fade var(--m-arrive) both;
 }
 .bar[data-shut="true"] .bar__open { display: inline-flex; }
-.bar__open .tag2 { flex-basis: 24px; height: 24px; font-size: 12px; }
+.bar__open .tag2 { flex-basis: 24px; width: 24px; height: 24px; font-size: 12px; }
 .bar__open span { font-size: 12px; font-weight: 600; }
 .bar__open em { font-style: normal; font-size: 12px; color: var(--text-3); }
 
@@ -277,19 +281,24 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 .sheet-body .grp { flex-wrap: wrap; }
 
 /* ======================================================= 5 device frames */
-.stage {
-  flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--sp5) var(--sp4);
-  display: flex; justify-content: center; align-items: flex-start;
-}
-.frame { flex: 0 0 auto; max-width: 100%; }
+/* On the web the app fills everything under the control bar, and the page
+   itself never scrolls — the content area does, and nothing else. On a phone
+   the device sits in a padded area that may scroll when the window is short.
+   Enforced by CHECK.scrolls(). */
+.stage { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; }
+.stage[data-mode="web"]  { padding: 0; overflow: hidden; align-items: stretch; }
+.stage[data-mode="hand"] { padding: var(--sp5) var(--sp4); overflow: auto;
+  justify-content: center; align-items: flex-start; }
+
+.frame { flex: 0 0 auto; max-width: 100%; min-width: 0; }
 .frame__cap { display: flex; align-items: center; gap: var(--sp2) var(--sp3);
   margin-bottom: var(--sp2); flex-wrap: wrap; }
 .frame__cap .cap { white-space: nowrap; }
 
-.frame.desk { width: 100%; max-width: 1300px; }
+.frame.desk { flex: 1 1 auto; width: auto; max-width: none; min-height: 0; display: flex; }
 .frame.desk .kit {
-  background: var(--paper); border: 1px solid var(--edge); border-radius: var(--r3);
-  overflow: hidden; box-shadow: var(--lift-2);
+  flex: 1 1 auto; min-width: 0; min-height: 0; display: flex;
+  background: var(--paper); border: 0; border-radius: 0; box-shadow: none; overflow: hidden;
 }
 
 /* the phone keeps its exact pixel size and is scaled to fit the window */
@@ -313,7 +322,8 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
 .frame.hand.wide .lens, .frame.hand.slate .lens, .frame.hand.plain .lens { display: none; }
 
 /* ========================================================= 6 app layout */
-.kit-in { display: flex; min-height: 620px; container-type: inline-size; container-name: app; }
+.kit-in { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0;
+  container-type: inline-size; container-name: app; }
 .kit-in.hand { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
   font-size: var(--t-body-mob); }
 
@@ -378,7 +388,17 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   position: relative; flex: 0 0 auto; width: auto; min-width: 36px;
   justify-content: center; padding: 6px; gap: 0;
 }
-.side__bell .count { position: absolute; top: 1px; right: 1px; margin: 0; }
+.side__bell .dot { top: 5px; right: 5px; }
+
+/* An unread mark. A dot, not a number — a number inside an icon is never
+   legible at this size. The count still reaches a screen reader through the
+   label, so nothing is lost, it is just not drawn.
+   Kept in the neutral dark rather than a warning colour: at wireframe stage
+   colour must not be the thing carrying the meaning. */
+.dot {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--solid); box-shadow: 0 0 0 2px var(--paper-2);
+}
 
 /* what this person can see — under the mark, not competing with the list */
 .side__sees { padding: 0 var(--sp4) var(--sp3); font-size: 12px; color: var(--text-3); }
@@ -389,14 +409,17 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   font-size: 12px; font-weight: 700; padding: 0 6px; min-width: 20px; text-align: center;
 }
 
-.page-wrap { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.page-top { display: flex; align-items: center; gap: var(--sp3); padding: var(--sp3) var(--sp5);
-  border-bottom: 1px solid var(--rule); }
+.page-wrap { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.page-top { flex: 0 0 auto; display: flex; align-items: center; gap: var(--sp3);
+  padding: var(--sp3) var(--sp5); border-bottom: 1px solid var(--rule); }
 .trail { font-size: 12.5px; color: var(--text-3); }
 .trail b { color: var(--text); font-weight: 650; }
-.page { padding: var(--sp5); flex: 1 1 auto; }
+/* the one scroller in the web view */
+.page { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: var(--sp5); }
 
 h1.t1 { font-size: var(--t-h1-web); font-weight: 650; letter-spacing: -.011em; margin: 0 0 4px; }
+/* Prose keeps a reading width — at 200 characters a line the eye loses its
+   way back on every return. Everything carrying data fills the width. */
 p.lede { font-size: 13.5px; color: var(--text-3); margin: 0 0 var(--sp5); max-width: 66ch; }
 h2.t2 { font-size: var(--t-h2); font-weight: 650; margin: var(--sp6) 0 var(--sp3); }
 h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2); }
@@ -416,7 +439,7 @@ h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2
 }
 .m-tab svg { display: block; margin: 0 auto 4px; }
 .m-tab[aria-current="page"] { color: var(--text); font-weight: 650; }
-.m-tab .count { position: absolute; top: 4px; left: 55%; margin: 0; background: var(--stop); }
+.m-tab .dot { top: 6px; left: 56%; box-shadow: 0 0 0 2px var(--paper-2); }
 
 /* everything touchable is 44px inside a phone */
 .kit-in.hand .btn { min-height: var(--tap-mob); min-width: var(--tap-mob); }
@@ -643,6 +666,23 @@ table.grid tbody tr.tapable:hover { background: var(--paper-2); }
 .none p { margin: 6px auto 0; font-size: 13px; color: var(--text-3); max-width: 46ch; }
 .none .btn { margin-top: var(--sp4); }
 .bone { background: var(--paper-3); border-radius: var(--r1); animation: m-pulse 1.3s ease-in-out infinite; }
+/* a section you can put away. For lists that are maintenance rather than
+   reading — long, occasionally needed, not worth the height by default. */
+details.fold { border: 1px solid var(--rule); border-radius: var(--r2);
+  background: var(--paper); margin: var(--sp3) 0; }
+details.fold > summary { cursor: pointer; list-style: none; min-height: var(--tap);
+  padding: var(--sp3) var(--sp4); display: flex; align-items: center; gap: var(--sp2);
+  font-size: 13.5px; font-weight: 650; border-radius: var(--r2); }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::marker { content: ''; }
+details.fold > summary:hover { background: var(--paper-2); }
+details.fold > summary .ico { transition: transform var(--m-tap) var(--ease); }
+details.fold[open] > summary .ico { transform: rotate(180deg); }
+details.fold[open] > summary { border-bottom: 1px solid var(--rule-soft);
+  border-radius: var(--r2) var(--r2) 0 0; }
+details.fold .fold__body { padding: var(--sp4); }
+.kit-in.hand details.fold > summary { min-height: var(--tap-mob); font-size: 15px; }
+
 .later { border: 1px dashed var(--edge); border-radius: var(--r2); background: var(--paper-2); padding: var(--sp5); }
 .later b { display: block; font-size: 14px; font-weight: 650; }
 
@@ -707,7 +747,7 @@ var TERMS = {
     request:'Request',      requests:'Requests',
     kit:'Kit',              kits:'Kits',
     delivery:'Delivery',    deliveries:'Deliveries',
-    emergency:'Emergency',  emergencies:'Emergencies',
+    disaster:'Disaster',    disasters:'Disasters',
     org:'Organisation',     orgs:'Organisations',
     driver:'Driver',        drivers:'Drivers',
     vehicle:'Vehicle',      vehicles:'Vehicles',
@@ -803,15 +843,15 @@ var REGIONS = {
         {id:'P-DRIVE', org:'ORG-W1', job:'DRIVER',       name:'Imran Qureshi',     phone:'+971 50 000 0101'}
       ],
       disasters:[
-        {id:'EM-01', code:'NE-FLOOD-014', kind:'Flood', name:'Northern Emirates flood',
+        {id:'DIS-01', code:'NE-FLOOD-014', kind:'Flood', name:'Northern Emirates flood',
          level:'Severity 4 of 5', declared:'2026-08-24T06:15:00+04:00',
          lat:25.86, lng:56.02, reach_m:25000, status:'ACTIVE',
          note:'Flash flooding across Ras Al Khaimah wadis after three days of rain. Road access to coastal settlements comes and goes.'}
       ],
       sites:[
-        {id:'SITE-01', org:'ORG-R1', emergency:'EM-01', name:'Al Rams shelter',            street:'Al Rams community hall, Al Rams Road', area:'Ras Al Khaimah', lat:25.8710, lng:56.0290, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
-        {id:'SITE-02', org:'ORG-R1', emergency:'EM-01', name:"Sha'am community centre",    street:"Sha'am coastal road",                  area:'Ras Al Khaimah', lat:25.9820, lng:56.1010, people:920,  room:1100, lead:null,    status:'ACTIVE'},
-        {id:'SITE-03', org:'ORG-R1', emergency:'EM-01', name:'Wadi Haqil camp',            street:'Wadi Haqil, off E11',                  area:'Ras Al Khaimah', lat:25.8310, lng:56.0040, people:2400, room:2600, lead:null,    status:'ACTIVE'}
+        {id:'SITE-01', org:'ORG-R1', disaster:'DIS-01', name:'Al Rams shelter',            street:'Al Rams community hall, Al Rams Road', area:'Ras Al Khaimah', lat:25.8710, lng:56.0290, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
+        {id:'SITE-02', org:'ORG-R1', disaster:'DIS-01', name:"Sha'am community centre",    street:"Sha'am coastal road",                  area:'Ras Al Khaimah', lat:25.9820, lng:56.1010, people:920,  room:1100, lead:null,    status:'ACTIVE'},
+        {id:'SITE-03', org:'ORG-R1', disaster:'DIS-01', name:'Wadi Haqil camp',            street:'Wadi Haqil, off E11',                  area:'Ras Al Khaimah', lat:25.8310, lng:56.0040, people:2400, room:2600, lead:null,    status:'ACTIVE'}
       ],
       stores:[
         {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Jebel Ali distribution hub', area:'Dubai',          lat:24.9905, lng:55.0920, pallets:2400, chilled:true },
@@ -884,15 +924,15 @@ var REGIONS = {
         {id:'P-DRIVE', org:'ORG-W1', job:'DRIVER',       name:'Wes Carrington', phone:'+1 (409) 000-0101'}
       ],
       disasters:[
-        {id:'EM-01', code:'GC-HURR-021', kind:'Hurricane', name:'Hurricane Marisol',
+        {id:'DIS-01', code:'GC-HURR-021', kind:'Hurricane', name:'Hurricane Marisol',
          level:'Category 3', declared:'2026-08-24T06:15:00-05:00',
          lat:30.05, lng:-93.20, reach_m:90000, status:'ACTIVE',
          note:'Category 3 landfall west of Cameron Parish. Storm surge and inland flooding across southwest Louisiana and southeast Texas. Interstate access comes and goes.'}
       ],
       sites:[
-        {id:'SITE-01', org:'ORG-R1', emergency:'EM-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
-        {id:'SITE-02', org:'ORG-R1', emergency:'EM-01', name:'Sulphur community center',  street:'101 N Huntington St, Sulphur',   area:'Louisiana', post:'70663', lat:30.2366, lng:-93.3774, people:920,  room:1100, lead:null,    status:'ACTIVE'},
-        {id:'SITE-03', org:'ORG-R1', emergency:'EM-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE'}
+        {id:'SITE-01', org:'ORG-R1', disaster:'DIS-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
+        {id:'SITE-02', org:'ORG-R1', disaster:'DIS-01', name:'Sulphur community center',  street:'101 N Huntington St, Sulphur',   area:'Louisiana', post:'70663', lat:30.2366, lng:-93.3774, people:920,  room:1100, lead:null,    status:'ACTIVE'},
+        {id:'SITE-03', org:'ORG-R1', disaster:'DIS-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE'}
       ],
       stores:[
         {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Houston distribution center', area:'Texas',     post:'77032', lat:29.9844, lng:-95.3414, pallets:2400, chilled:true },
@@ -1937,6 +1977,20 @@ var U = (function () {
       el('b', { text: o.headline }), o.detail ? el('p', { text: o.detail }) : null, o.doThis || null ]);
   }
 
+  /* a section that can be put away. Native disclosure, so the keyboard and a
+     screen reader get it for free. */
+  function fold(o) {
+    var d = el('details', { class: 'fold', open: o.open ? true : null });
+    d.appendChild(el('summary', {}, [
+      ico('down', 16),
+      el('span', { text: o.label }),
+      el('span', { class: 'fill' }),
+      o.note ? el('span', { class: 'stamp', text: o.note }) : null
+    ]));
+    d.appendChild(el('div', { class: 'fold__body' }, [].concat(o.body || [])));
+    return d;
+  }
+
   function later(name, why) {
     return el('div', { class: 'later' }, [
       el('b', { text: name }),
@@ -2008,7 +2062,7 @@ var U = (function () {
   return { el:el, empty:empty, newId:newId, ico:ico, SHAPES:SHAPES,
     btn:btn, working:working, chip:chip, box:box, figure:figure, meter:meter, steps:steps,
     ask:ask, line:line, choose:choose, para:para, howMany:howMany, tick:tick,
-    grid:grid, say:say, none:none, later:later, bone:bone, brief:brief,
+    grid:grid, say:say, none:none, later:later, bone:bone, brief:brief, fold:fold,
     panel:panel, confirm:confirm, shut:shut };
 })();
 
@@ -2103,6 +2157,8 @@ var Hidden = (function () {
 var PEOPLE_VIEWS = [
   { id:'admin', person:'P-ADMIN', tag:'PA', sees:'Everything, everywhere',
     view:'desk', first:'network',
+    tabs:[['network','Network','network'],['disasters','Disasters','storm'],
+          ['orgs','Organisations','building'],['stores','{Stores}','warehouse']],
     groups:[
       { label:'The network', items:[
         ['network','Network','network'],
@@ -2120,6 +2176,8 @@ var PEOPLE_VIEWS = [
 
   { id:'relief-lead', person:'P-LEAD', tag:'RL', sees:'Everything this organisation runs',
     view:'desk', first:'lead-overview',
+    tabs:[['lead-overview','Overview','home'],['disasters','Disasters','storm'],
+          ['sites','{Sites}','shelter'],['requests','Requests','list']],
     groups:[
       { label:'This organisation', items:[
         ['lead-overview','Overview','home'],
@@ -2138,6 +2196,10 @@ var PEOPLE_VIEWS = [
 
   { id:'warehouse-manager', person:'P-STORE', tag:'WM', sees:'One warehouse',
     view:'desk', first:'store-overview',
+    /* planning works from the phone too, so the bottom bar carries the four
+       things this job comes back to, not just the away-from-desk ones */
+    tabs:[['store-overview','Overview','home'],['stock','Stock','box'],
+          ['new-requests','Requests','list'],['send-out','Send out','truck']],
     groups:[
       { label:'This warehouse', items:[
         ['store-overview','Overview','home'],
@@ -2280,9 +2342,11 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
   ['job-done','Job done'], ['profile','Profile']
 ].forEach(function (s) {
   addScreen(s[0], s[1], function (c) {
+    /* No persona line here. Who you are, what you can see and which place you
+       are in all sit in the control bar and the side list — saying it a third
+       time on every screen is noise. */
     return U.el('div', { class: 'm-page' }, [
       U.el('h1', { class: 't1', text: words(s[1]) }),
-      U.el('p', { class: 'lede', text: JOBS[c.person.job] + ' · ' + c.me.sees + ' · ' + c.place.short }),
       U.later(words(s[1]))
     ]);
   });
@@ -2340,29 +2404,49 @@ addScreen('archived', 'Archived', function (c) {
     }));
   }
 
-  parts.push(U.el('h2', { class: 't2', text: 'People taken out of sight' }));
-  if (!outOfSight.length) {
-    parts.push(U.none({ headline: 'Everyone is in use', detail: 'No people-views are hidden.' }));
-  } else {
-    parts.push(U.grid({
-      about: 'People-views out of sight',
+  /* the register holds two very different things: whole people-views, which
+     someone will want back, and pages left over from them, which is
+     housekeeping. Splitting them keeps the page short. */
+  function registerTable(ids, whatItIs) {
+    return U.grid({
+      about: whatItIs,
       cols: [
-        { label:'Who', cell: function (id) { return U.el('b', { text: REGISTER[id].name || id }); } },
+        { label:'What', cell: function (id) { return U.el('b', { text: REGISTER[id].name || id }); } },
         { label:'Since', cell: function (id) { return REGISTER[id].when; } },
         { label:'Why', cell: function (id) { return REGISTER[id].why; } },
         { label:'', cell: function (id) {
             if (!canRestore) return U.el('span', { class:'stamp', text:'Only an admin can bring this back' });
             return U.btn('Bring back', { size:'small', icon:'refresh', onTap: function () {
               U.confirm({ title:'Bring ' + (REGISTER[id].name || id) + ' back?',
-                detail:'They will appear in the person picker again, with all their pages.',
+                detail: REGISTER[id].kind === 'persona'
+                  ? 'They will appear in the person picker again, with all their pages.'
+                  : 'The page becomes reachable again from whichever side list points at it.',
                 yes:'Bring back', onYes: function () {
                   Hidden.restore(id);
-                  U.brief('Back in use', (REGISTER[id].name || id) + ' is in the picker again', 'good');
+                  U.brief('Back in use', (REGISTER[id].name || id) + ' is available again', 'good');
                 } });
             } });
         } }
       ],
-      rows: outOfSight
+      rows: ids
+    });
+  }
+
+  var hiddenPeople = outOfSight.filter(function (id) { return REGISTER[id].kind === 'persona'; });
+  var hiddenPages  = outOfSight.filter(function (id) { return REGISTER[id].kind === 'page'; });
+
+  parts.push(U.el('h2', { class: 't2', text: 'People taken out of sight' }));
+  parts.push(hiddenPeople.length
+    ? registerTable(hiddenPeople, 'People-views out of sight')
+    : U.none({ headline: 'Everyone is in use', detail: 'No people-views are hidden.' }));
+
+  if (hiddenPages.length) {
+    parts.push(U.el('h2', { class: 't2', text: 'Pages no longer in a side list' }));
+    parts.push(U.el('p', { class: 'lede', text: 'Housekeeping. These were built for people who are now out of sight, so nothing points at them. They are recorded rather than lost.' }));
+    parts.push(U.fold({
+      label: hiddenPages.length + (hiddenPages.length === 1 ? ' page' : ' pages'),
+      open: false,
+      body: registerTable(hiddenPages, 'Pages out of sight')
     }));
   }
 
@@ -2809,11 +2893,12 @@ var Shell = (function () {
 
     var bell = el('a', { class: 'side__item side__bell', href: '#/' + s.view + '/' + c.me.id + '/alerts',
       'aria-current': s.page === 'alerts' ? 'page' : null,
-      title: unseen ? unseen + ' unread alerts' : 'Alerts',
+      title: unseen ? unseen + (unseen === 1 ? ' unread alert' : ' unread alerts') : 'Alerts',
       onclick: function (e) { e.preventDefault(); go(null, 'alerts'); } }, [
       U.ico('bell', 18),
+      /* the number is spoken, the eye sees a dot */
       el('span', { class: 'vh', text: unseen ? 'Alerts, ' + unseen + ' unread' : 'Alerts' }),
-      unseen ? el('span', { class: 'count', text: String(unseen) }) : null
+      unseen ? el('span', { class: 'dot', 'aria-hidden': 'true' }) : null
     ]);
 
     return el('nav', { class: 'side', 'aria-label': 'Pages', data: { narrow: String(narrow) } }, [
@@ -2884,8 +2969,10 @@ var Shell = (function () {
         onclick: function () { go(null, x[0]); } });
       b.appendChild(U.ico(x[2] || 'list', 22));
       b.appendChild(document.createTextNode(words(x[1])));
-      if (x[0] === 'alerts' && unseen) b.appendChild(
-        el('span', { class: 'count' }, [ String(unseen), el('span', { class: 'vh', text: ' not read' }) ]));
+      if (x[0] === 'alerts' && unseen) {
+        b.appendChild(el('span', { class: 'dot', 'aria-hidden': 'true' }));
+        b.appendChild(el('span', { class: 'vh', text: ', ' + unseen + ' unread' }));
+      }
       return b;
     }));
 
@@ -2897,13 +2984,10 @@ var Shell = (function () {
   /* ------------------------------------------------------- the frames */
   function frame(c) {
     if (s.view === 'desk') {
-      return el('div', { class: 'frame desk' }, [
-        el('div', { class: 'frame__cap' }, [
-          el('span', { class: 'cap', text: 'Desktop' }),
-          U.chip(JOBS[c.person.job]), U.chip(c.me.sees), U.chip(Store.place.short)
-        ]),
-        el('div', { class: 'kit' }, [ deskApp(c) ])
-      ]);
+      /* No caption here. Who you are, where you are and which view you are in
+         all sit in the control bar above, and you change them from there —
+         saying it twice is noise. The app fills the viewport instead. */
+      return el('div', { class: 'frame desk' }, [ el('div', { class: 'kit' }, [ deskApp(c) ]) ]);
     }
 
     var d = deviceOf(s.phone);
@@ -2966,7 +3050,9 @@ var Shell = (function () {
     empty(root);
     var c = context();
     root.appendChild(el('div', { class: 'col', style: 'height:100%' }, [
-      bar(), el('div', { class: 'stage' }, [ frame(c) ]) ]));
+      bar(),
+      el('div', { class: 'stage', data: { mode: s.view === 'desk' ? 'web' : 'hand' } }, [ frame(c) ])
+    ]));
 
     if (!toTop) KEEP.forEach(function (sel) {
       var n = root.querySelector(sel); if (n && held[sel]) n.scrollTop = held[sel]; });
@@ -3138,11 +3224,45 @@ var CHECK = (function () {
     return { checked: Object.keys(SCREENS).length + ' pages, ' + PEOPLE_VIEWS.length + ' people', problems: hits };
   }
 
+  /* Only these are meant to scroll. Anything else that can is a rogue scroll:
+     it traps a wheel gesture, hides content behind an invisible edge, and on a
+     phone it fights the page. */
+  var ALLOWED_SCROLLERS = ['.page', '.side__scroll', '.m-body', '.grid-wrap',
+                           '.who__list', '.panel', '.stage', '.fold__body'];
+
+  function scrolls() {
+    var hits = [];
+    var de = document.documentElement;
+    if (de.scrollHeight > de.clientHeight + 1) hits.push('the page itself scrolls up and down — it never should');
+    if (de.scrollWidth  > de.clientWidth  + 1) hits.push('the page itself scrolls sideways — it never should');
+
+    Array.prototype.forEach.call(document.querySelectorAll('#app *'), function (node) {
+      if (!node.offsetWidth && !node.offsetHeight) return;
+      var cs = getComputedStyle(node);
+      var canY = cs.overflowY === 'auto' || cs.overflowY === 'scroll';
+      var canX = cs.overflowX === 'auto' || cs.overflowX === 'scroll';
+      if (!canY && !canX) return;
+      var allowed = ALLOWED_SCROLLERS.some(function (sel) {
+        return node.matches && node.matches(sel);
+      });
+      if (allowed) return;
+      var name = (node.className && String(node.className).split(' ')[0]) || node.tagName.toLowerCase();
+      var doesY = canY && node.scrollHeight > node.clientHeight + 1;
+      var doesX = canX && node.scrollWidth  > node.clientWidth  + 1;
+      hits.push(name + (doesY || doesX
+        ? ' is scrolling and was not meant to'
+        : ' can scroll and is not on the allowed list'));
+    });
+    return { checked: 'the page and everything inside the app', problems: hits };
+  }
+
   function all(quiet) {
-    var w = checkWords(), n = numbers(), m = motion(), a = A11Y.audit(true), pg = pages();
+    var w = checkWords(), n = numbers(), m = motion(), a = A11Y.audit(true), pg = pages(), sc = scrolls();
     var total = w.problems.length + n.problems.length + m.problems.length + pg.problems.length +
+                sc.problems.length +
                 a.contrastFails + a.textTooSmall.length + a.touchTooSmall.length + a.sticksOut.length;
-    var out = { words: w, numbers: n, motion: m, links: pg, access: a, problems: total, clean: total === 0 };
+    var out = { words: w, numbers: n, motion: m, links: pg, scrolls: sc, access: a,
+                problems: total, clean: total === 0 };
     if (!quiet) {
       console.log('%cChecks: ' + (out.clean ? 'all clean' : out.problems + ' to fix'),
         'font-weight:bold;color:' + (out.clean ? '#070' : '#b00'));
@@ -3150,6 +3270,7 @@ var CHECK = (function () {
       if (n.problems.length) console.warn('Numbers:', n.problems);
       if (m.problems.length) console.warn('Movement:', m.problems);
       if (pg.problems.length) console.warn('Broken links:', pg.problems);
+      if (sc.problems.length) console.warn('Rogue scrolls:', sc.problems);
       if (a.contrastFails) console.warn('Contrast:', a.contrast);
       if (a.textTooSmall.length) console.warn('Text too small:', a.textTooSmall);
       if (a.touchTooSmall.length) console.warn('Touch targets too small:', a.touchTooSmall);
@@ -3164,8 +3285,9 @@ var CHECK = (function () {
     return out;
   }
 
-  return { words: checkWords, numbers: numbers, motion: motion, pages: pages, all: all,
-           BANNED: BANNED, COSTLY: COSTLY };
+  return { words: checkWords, numbers: numbers, motion: motion, pages: pages,
+           scrolls: scrolls, all: all,
+           BANNED: BANNED, COSTLY: COSTLY, ALLOWED_SCROLLERS: ALLOWED_SCROLLERS };
 })();
 
 
