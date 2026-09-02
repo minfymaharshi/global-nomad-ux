@@ -2507,14 +2507,16 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
 });
 
 /* ------------------------------------------------------------------------------
-   Disasters — Super Admin's list. Search, three filters, card/table, an
-   empty state, and Live/Archived. Card option 1 from the review, chosen: a
-   faithful description rather than a progress report, plus its closed
-   variant. Module-level state (not in Store) — it is view preference, not
-   data, and it survives a repaint via the same focus-preservation paint()
-   now carries for any field marked data-keep-focus.
+   Disasters — Super Admin's list. Search, three filters, card/table, two
+   empty states. No archive here — a disaster only ever moves between
+   Ongoing and Closed, both live, both always in this list. Card option 1
+   from the review, chosen: a faithful description rather than a progress
+   report, plus its closed variant. Module-level state (not in Store) — it
+   is view preference, not data, and it survives a repaint via the same
+   focus-preservation paint() now carries for any field marked
+   data-keep-focus.
    ------------------------------------------------------------------------------ */
-var disastersUI = { q: '', status: '', type: '', zone: '', view: 'card', tab: 'live' };
+var disastersUI = { q: '', status: '', type: '', zone: '', view: 'card' };
 
 function disasterOrgs(d) {
   var seen = {};
@@ -2542,7 +2544,7 @@ addScreen('disasters', 'Disasters', function (c) {
     return true;
   }
 
-  var pool = disastersUI.tab === 'archived' ? Store.archivedIn('disasters') : Store.live('disasters');
+  var pool = Store.live('disasters');
   var rows = pool.filter(matches).slice()
     .sort(function (a, b) { return new Date(b.declared) - new Date(a.declared); });
 
@@ -2551,39 +2553,70 @@ addScreen('disasters', 'Disasters', function (c) {
     c.again();
   }
 
-  function archiveDisaster(d) {
+  function editDisaster(d) {
+    U.brief('Not built yet', 'Editing opens the same flow as adding one — next.', 'note');
+  }
+  function closeDisaster(d) {
     U.confirm({
-      title: 'Archive ' + d.name + '?',
-      detail: 'It moves out of the main list. Nothing is deleted — it waits in Archived and can be brought back from there or from here.',
-      yes: 'Archive', risky: true,
+      title: 'Close ' + d.name + '?',
+      detail: 'It stays in this list, marked Closed, and can be reopened any time.',
+      yes: 'Close', risky: true,
       onYes: function () {
-        Store.archive('disasters', d.id, c.person.id, 'Archived from the Disasters list');
-        U.brief('Archived', d.name + ' moved to Archived.', 'good');
+        /* Store.note only mutates now.history — like Store.archive, it has
+           to run inside Store.change() so the same write()+tell() persists
+           and broadcasts both the status flip and the history line. Calling
+           it standalone would look right (the redraw reads the same
+           in-memory object) but never survive a reload. */
+        Store.change(function (now) {
+          var r = now.disasters.filter(function (x) { return x.id === d.id; })[0];
+          if (r) { r.status = 'CLOSED'; r.closedAt = new Date().toISOString(); }
+          Store.note('Closed', T('disaster') + ' ' + d.name, c.person.id);
+        });
+        U.brief('Closed', d.name + ' is marked closed.', 'good');
         c.again();
       }
     });
   }
-  function restoreDisaster(d) {
+  function reopenDisaster(d) {
     U.confirm({
-      title: 'Bring ' + d.name + ' back?',
-      detail: 'It reappears in the main list.',
-      yes: 'Bring back',
+      title: 'Reopen ' + d.name + '?',
+      detail: 'It goes back to Ongoing.',
+      yes: 'Reopen',
       onYes: function () {
-        Store.unarchive('disasters', d.id, c.person.id);
-        U.brief('Back in the list', d.name + ' is live again.', 'good');
+        Store.change(function (now) {
+          var r = now.disasters.filter(function (x) { return x.id === d.id; })[0];
+          if (r) { r.status = 'ACTIVE'; r.closedAt = null; }
+          Store.note('Reopened', T('disaster') + ' ' + d.name, c.person.id);
+        });
+        U.brief('Reopened', d.name + ' is ongoing again.', 'good');
         c.again();
       }
     });
   }
 
-  /* the one action a disaster's menu offers right now. A single-purpose
-     icon button rather than a fake dropdown with one entry in it. */
+  /* Edit and Close/Reopen — a short list in a panel rather than a hand-rolled
+     anchored dropdown, so it gets the same focus trap, Escape and backdrop
+     dismissal every other panel already has for free. First menu like this
+     in the kit; see the design system if it needs a second entry someday. */
+  function actionsMenu(d) {
+    var closed = d.status === 'CLOSED';
+    U.panel({
+      title: d.name,
+      body: U.el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, [
+        U.btn('Edit', { icon: 'save', wide: true, onTap: function () { U.shut(); editDisaster(d); } }),
+        closed
+          ? U.btn('Reopen', { icon: 'refresh', wide: true, onTap: function () { U.shut(); reopenDisaster(d); } })
+          : U.btn('Close ' + t('disaster'), { icon: 'tick', wide: true, onTap: function () { U.shut(); closeDisaster(d); } })
+      ]),
+      doThis: [ U.btn('Cancel', { onTap: function () { U.shut(); } }) ]
+    });
+  }
+
   function moreButton(d) {
     if (!canManage) return null;
-    var forArchive = disastersUI.tab !== 'archived';
-    var label = (forArchive ? 'Archive ' : 'Bring back ') + d.name;
+    var label = d.name + ' — more actions';
     return U.el('button', { class: 'icon-btn', title: label, 'aria-label': label,
-      onclick: function () { forArchive ? archiveDisaster(d) : restoreDisaster(d); } },
+      'aria-haspopup': 'true', onclick: function () { actionsMenu(d); } },
       [ U.ico('more', 16, 'filled') ]);
   }
 
@@ -2681,22 +2714,19 @@ addScreen('disasters', 'Disasters', function (c) {
     ]);
   }
 
-  var archivedCount = Store.archivedIn('disasters').length;
-  var toggles = U.el('div', { class: 'line wrap', style: 'gap:20px;margin-bottom:20px' }, [
-    c.view === 'desk' ? segmented('View', disastersUI.view,
-      [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
-      function (v) { disastersUI.view = v; }) : null,
-    segmented('Show', disastersUI.tab,
-      [{ value: 'live', label: 'Live' },
-       { value: 'archived', label: 'Archived' + (archivedCount ? ' (' + FMT.count(archivedCount) + ')' : '') }],
-      function (v) { disastersUI.tab = v; })
-  ]);
+  /* Card/Table only — no Live/Archived here. A disaster only ever moves
+     between Ongoing and Closed, and both stay in this one list. */
+  var toggles = c.view === 'desk'
+    ? U.el('div', { class: 'line wrap', style: 'margin-bottom:20px' }, [
+        segmented('View', disastersUI.view,
+          [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
+          function (v) { disastersUI.view = v; })
+      ])
+    : null;
 
   var body;
   if (!pool.length) {
-    body = disastersUI.tab === 'archived'
-      ? U.none({ headline: 'Nothing archived', detail: 'When you archive a ' + t('disaster') + ', it waits here and can be brought back.' })
-      : U.none({ headline: 'No ' + t('disasters') + ' yet', detail: 'Nothing has been declared for ' + region.name + '.' });
+    body = U.none({ headline: 'No ' + t('disasters') + ' yet', detail: 'Nothing has been declared for ' + region.name + '.' });
   } else if (!rows.length) {
     body = U.none({ headline: 'Nothing matches', detail: 'Try a different search, or clear the filters.',
       doThis: U.btn('Clear filters', { size: 'small', onTap: clearFilters }) });

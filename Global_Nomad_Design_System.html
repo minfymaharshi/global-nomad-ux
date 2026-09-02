@@ -1039,7 +1039,7 @@ body[data-face="mob"] .d-foot { font-size:13px; }
             <p class="d-name">Hurricane Marisol</p>
             <p class="d-where">Louisiana</p>
           </div>
-          <button class="icon-btn" title="Archive Hurricane Marisol" aria-label="Archive Hurricane Marisol">
+          <button class="icon-btn" title="Hurricane Marisol — more actions" aria-label="Hurricane Marisol — more actions">
             <svg class="ico filled" viewBox="0 0 22 22" width="16" height="16" aria-hidden="true"><circle cx="11" cy="4.5" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.5" r="1.6"/></svg>
           </button>
         </div>
@@ -1057,7 +1057,7 @@ body[data-face="mob"] .d-foot { font-size:13px; }
             <p class="d-name">Tuscaloosa County tornado outbreak</p>
             <p class="d-where">Alabama</p>
           </div>
-          <button class="icon-btn" title="Bring Tuscaloosa County tornado outbreak back" aria-label="Bring Tuscaloosa County tornado outbreak back">
+          <button class="icon-btn" title="Tuscaloosa County tornado outbreak — more actions" aria-label="Tuscaloosa County tornado outbreak — more actions">
             <svg class="ico filled" viewBox="0 0 22 22" width="16" height="16" aria-hidden="true"><circle cx="11" cy="4.5" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="11" cy="17.5" r="1.6"/></svg>
           </button>
         </div>
@@ -1077,10 +1077,10 @@ body[data-face="mob"] .d-foot { font-size:13px; }
     <div class="spec"><dl>
       <dt>The hero number</dt><dd>People affected — a <b>declared</b> figure on the record itself, like its severity level, not computed from linked data. <b>26px</b>, tabular figures.</dd>
       <dt>The three counts</dt><dd>Organisations, shelters and warehouses attached to this disaster — real, computed relationships, not declared. Zero is a true answer for a disaster just raised: nothing has been tagged to it yet.</dd>
-      <dt>Status vs. archived</dt><dd>Two different questions, kept independent. <b>Ongoing / Closed</b> is the disaster's own lifecycle — a plain neutral chip either way, because closing is not itself good or bad news. <b>Live / Archived</b> is the same reversible hide used everywhere else in this kit. A closed disaster can still be live; archiving is a separate, later act.</dd>
-      <dt>The closed state</dt><dd>Three changes only. Name steps to <code>--text-2</code>, the hero number and the three counts step to <code>--text-3</code>, and a footer line replaces where an open card has nothing yet to say — when it closed, and how long it ran, both computed from real dates.</dd>
-      <dt>The menu</dt><dd>One action right now — archive, or bring back — so it is a single-purpose icon button, not a dropdown with one entry in it. The kebab shape is kept because a second action is expected once the disaster has a detail page to open.</dd>
-      <dt>Access</dt><dd>The icon button carries its own <code>title</code> and <code>aria-label</code> naming the disaster and the action — never just “More”.</dd>
+      <dt>Ongoing / Closed only</dt><dd>No archive on this page — a disaster only ever moves between the two, and both stay in the one list. Closing is not itself good or bad news, so the chip is plain neutral either way, never a status colour. Closing and reopening both ask first, worded plainly: “Close Hurricane Marisol? It stays in this list, marked Closed, and can be reopened any time.”</dd>
+      <dt>The closed state</dt><dd>Three changes only. Name steps to <code>--text-2</code>, the hero number and the three counts step to <code>--text-3</code>, and a footer line replaces where an open card has nothing yet to say — when it closed, and how long it ran, both computed from real dates via <code>CALC.daysBetween</code>.</dd>
+      <dt>The menu</dt><dd>Edit, then Close or Reopen depending on which state the card is in — a short list inside a <code>panel()</code>, not a hand-rolled anchored dropdown. That gets the focus trap, Escape and backdrop dismissal every other panel in this kit already has for free, at the cost of a full-screen veil for what is otherwise a small choice. Worth it the first time this pattern was needed; revisit if a card ever needs four or more actions, where an anchored menu starts pulling its weight.</dd>
+      <dt>Access</dt><dd>The icon button carries its own <code>title</code> and <code>aria-label</code> — “Hurricane Marisol — more actions”, never just “More”. Each action inside the panel confirms in its own words naming the record, never a bare “Are you sure?”.</dd>
       <dt>For developers</dt><dd><code>.icon-btn</code> had no phone-size rule at all until this card needed one on Super Admin's phone surface — it had only ever been used inside desktop-only chrome before. Any icon button used inside actual page content needs the same check: does it meet 44px where the page can be viewed on a phone, not just where it happens to be used today.</dd>
     </dl></div>
   </article>
@@ -1088,8 +1088,8 @@ body[data-face="mob"] .d-foot { font-size:13px; }
   <!-- ------------------------------------------------------------ list toolbar -->
   <article class="entry">
     <div class="entry__top"><h3>List toolbar</h3><code>.ask</code> <code>.pick</code>
-      <p class="entry__why">Search, filters, and a Card/Table or Live/Archived
-        switch, for any page that lists more than a handful of records.</p></div>
+      <p class="entry__why">Search, filters, and a Card/Table switch, for any
+        page that lists more than a handful of records.</p></div>
     <div class="demo stack">
       <div class="line wrap" style="align-items:flex-end;gap:12px">
         <div class="ask"><label class="ask__label">Search</label><input class="in" placeholder="Search by name or state"></div>
@@ -1097,14 +1097,13 @@ body[data-face="mob"] .d-foot { font-size:13px; }
       </div>
       <div class="line wrap" style="gap:20px">
         <div class="grp"><span class="cap">View</span><div class="pick" role="group"><button aria-pressed="true">Cards</button><button aria-pressed="false">Table</button></div></div>
-        <div class="grp"><span class="cap">Show</span><div class="pick" role="group"><button aria-pressed="true">Live</button><button aria-pressed="false">Archived (1)</button></div></div>
       </div>
     </div>
     <div class="spec"><dl>
       <dt>Search</dt><dd>Filters as you type, no button to press. A search box that needs a submit action makes someone wonder whether the list in front of them is already current.</dd>
       <dt>Filters</dt><dd>Real dropdowns, each with an explicit “All”. Filter values are never a hand-picked shortlist — the Type filter reads from the same list the record's own type picker uses, so a type added there is a real filter option here without new code.</dd>
       <dt>Card / Table</dt><dd>Desktop only. On a phone this switch does not render — cards are the only view, per the rule that a control with nothing to control does not render (see <b>A control with one option is not a control</b>).</dd>
-      <dt>Counts in a toggle label</dt><dd>“Archived (1)” — the number is read from the record count at the moment of drawing, never typed in. It disappears entirely at zero, since “Archived (0)” tells a reader less than “Archived” alone.</dd>
+      <dt>No Live/Archived here</dt><dd>Not every list needs the archive tab. The Disasters list only ever shows Ongoing and Closed, both live, both in the one list — archiving would be a different, later act this page does not offer. Whether a list gets an archive tab is a per-page decision, not something this toolbar assumes.</dd>
       <dt>For developers — the one real trap here</dt><dd><code>.pick</code> is also this design-system page's own Desktop/Phone switch, and that switch is deliberately sized for whoever is driving the kit, not for the simulated phone floor. Reusing <code>.pick</code> <em>inside actual page content</em> — like this toolbar — crosses into the product, and the product's phone floor applies. Missed the first time, caught by <code>GN.A11Y.audit()</code> on Super Admin's own phone surface: two buttons at 12.5px on a 26px target, both under floor. Fixed with a phone-only override scoped to content, leaving the page-chrome use of <code>.pick</code> untouched.</dd>
       <dt>For developers — typing without losing focus</dt><dd>A live-filtering search box redraws the list on every keystroke, and this kit's screens redraw whole rather than diff. Without help, the input node is destroyed and rebuilt each time and loses focus after one character. Any field marked <code>data-keep-focus="…"</code> survives a redraw: its value is already correct because state drives it, and <code>paint()</code> now restores focus and the cursor position to whichever element carries a matching value after every repaint.</dd>
     </dl></div>
