@@ -2591,7 +2591,13 @@ function volunteersFor(d) {
 }
 
 addScreen('disasters', 'Disasters', function (c) {
-  var canManage = c.person.job === 'ADMIN';
+  /* Super Admin declares and can close anything, anyone's. A Relief Org
+     Admin can declare one too, but only closes (or edits) the ones their
+     own org opened — never someone else's. Two different questions: can
+     this person add at all, and can they manage this one record. */
+  var isAdmin = c.person.job === 'ADMIN';
+  var canAdd = isAdmin || c.person.job === 'RELIEF_LEAD';
+  function canManageRecord(d) { return isAdmin || (c.person.job === 'RELIEF_LEAD' && d.addedByOrg === c.person.org); }
   var region = Store.place;
 
   function matches(d) {
@@ -2883,7 +2889,7 @@ addScreen('disasters', 'Disasters', function (c) {
   }
 
   function moreButton(d) {
-    if (!canManage) return null;
+    if (!canManageRecord(d)) return null;
     var label = d.name + ' — more actions';
     return U.el('button', { class: 'icon-btn', title: label, 'aria-label': label,
       'aria-haspopup': 'true', onclick: function () { actionsMenu(d); } },
@@ -2967,7 +2973,7 @@ addScreen('disasters', 'Disasters', function (c) {
         region.areaList.map(function (z) { return { value: z, label: z }; }),
         function (v) { disastersUI.zone = v; }),
       U.el('span', { class: 'fill' }),
-      canManage ? U.btn('Add ' + t('disaster'), { icon: 'plus', look: 'go', onTap: function () { openDisasterWizard(null); } }) : null
+      canAdd ? U.btn('Add ' + t('disaster'), { icon: 'plus', look: 'go', onTap: function () { openDisasterWizard(null); } }) : null
     ]);
   }
 
