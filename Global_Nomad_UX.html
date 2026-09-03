@@ -688,13 +688,18 @@ table.grid tbody tr.tapable:hover { background: var(--paper-2); }
   display: flex; align-items: center; justify-content: center; padding: var(--sp4);
   animation: m-fade var(--m-panel) var(--ease-out) both;
 }
+/* Three fixed regions, one scroller — never a single scrolling blob. A
+   short confirm dialog never notices; a long form's title and buttons stay
+   put while only its middle scrolls. */
 .panel { background: var(--paper); border-radius: var(--r3); box-shadow: var(--lift-3);
-  width: 100%; max-width: 470px; max-height: 88vh; overflow-y: auto;
+  width: 100%; max-width: 470px; max-height: 88vh;
+  display: flex; flex-direction: column;
   animation: m-rise var(--m-panel) var(--ease-out) both; }
-.panel__top { padding: var(--sp5) var(--sp5) 0; }
+.panel__top { flex: 0 0 auto; padding: var(--sp5) var(--sp5) 0; }
 .panel__top h2 { margin: 0; font-size: 16.5px; font-weight: 650; }
-.panel__mid { padding: var(--sp3) var(--sp5) var(--sp4); font-size: 13.5px; color: var(--text-2); }
-.panel__end { padding: var(--sp3) var(--sp5) var(--sp5); display: flex; gap: var(--sp2);
+.panel__mid { flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: var(--sp3) var(--sp5) var(--sp4); font-size: 13.5px; color: var(--text-2); }
+.panel__end { flex: 0 0 auto; padding: var(--sp3) var(--sp5) var(--sp5); display: flex; gap: var(--sp2);
   justify-content: flex-end; flex-wrap: wrap; }
 .veil.up { align-items: flex-end; padding: 0; }
 .veil.up .panel { max-width: none; border-radius: var(--r3) var(--r3) 0 0;
@@ -2678,8 +2683,10 @@ addScreen('disasters', 'Disasters', function (c) {
       name: '', type: liveDisasterTypes()[0], zone: region.areaList[0], peopleAffected: DISASTER_PEOPLE_DEFAULT,
       storeIds: [], orgIds: [], fleetIds: [], volunteerIds: []
     };
-    var step = 1, nameError = null;
+    var step = 1;
     var fleetSectionEl = U.el('div', {}, []);
+    var step1Container = U.el('div', {}, []);
+    var step2Container = U.el('div', {}, []);
 
     function autoFleetNames() {
       var names = Store.live('fleets', function (f) { return draft.storeIds.indexOf(f.store) > -1; })
@@ -2720,15 +2727,15 @@ addScreen('disasters', 'Disasters', function (c) {
       buildFleetSection().forEach(function (n) { fleetSectionEl.appendChild(n); });
     }
 
-    function buildStep1() {
+    function buildStep1(nameError) {
       var nameField = U.line({ value: draft.name, hint: 'e.g. Hurricane Marisol' });
       nameField.addEventListener('input', function () { draft.name = nameField.value; });
-      var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError });
+      var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError || null });
 
       var typeChips = U.el('div', { class: 'line wrap', style: 'gap:8px' },
         liveDisasterTypes().map(function (k) {
           return U.el('button', { type: 'button', class: 'chip' + (k === draft.type ? ' solid' : ''),
-            'aria-pressed': String(k === draft.type), onclick: function () { draft.type = k; refresh(); } }, [k]);
+            'aria-pressed': String(k === draft.type), onclick: function () { draft.type = k; refreshStep1(); } }, [k]);
         }));
       var newTypeField = U.line({ hint: 'Add a type' });
       var addType = U.btn('Add', { size: 'small', onTap: function () {
@@ -2737,7 +2744,7 @@ addScreen('disasters', 'Disasters', function (c) {
         var match = liveDisasterTypes().filter(function (k) { return k.toLowerCase() === v.toLowerCase(); })[0];
         if (!match) Store.change(function (now) { now.disasterTypes.push(v); });
         draft.type = match || v;
-        refresh();
+        refreshStep1();
       } });
 
       var zoneField = U.choose({ value: draft.zone, options: region.areaList.map(function (z) { return { value: z, label: z }; }) });
@@ -2756,6 +2763,10 @@ addScreen('disasters', 'Disasters', function (c) {
         U.ask({ label: T('area'), field: zoneField }),
         U.ask({ label: 'People affected, an estimate', field: peopleField })
       ]);
+    }
+    function refreshStep1(nameError) {
+      U.empty(step1Container);
+      step1Container.appendChild(buildStep1(nameError));
     }
 
     function buildStep2() {
@@ -2798,6 +2809,10 @@ addScreen('disasters', 'Disasters', function (c) {
         ])
       ]);
     }
+    function refreshStep2() {
+      U.empty(step2Container);
+      step2Container.appendChild(buildStep2());
+    }
 
     function submit() {
       var id;
@@ -2838,40 +2853,76 @@ addScreen('disasters', 'Disasters', function (c) {
       c.again();
     }
 
+    function goStep(n) {
+      step = n;
+      step1Container.style.display = n === 1 ? '' : 'none';
+      step2Container.style.display = n === 2 ? '' : 'none';
+      U.empty(stepsIndicatorEl);
+      stepsIndicatorEl.appendChild(U.steps(['Which type, and where', 'Who is involved'], step - 1));
+      var end = win.body.querySelector('.panel__end');
+      U.empty(end);
+      buildButtons().forEach(function (b) { end.appendChild(b); });
+    }
+
     function buildButtons() {
       if (step === 1) return [
         U.btn('Cancel', { onTap: function () { U.shut(); } }),
         U.btn('Next', { look: 'go', onTap: function () {
           var name = draft.name.trim();
-          if (!name) { nameError = 'This needs a name.'; refresh(); return; }
-          nameError = null; draft.name = name; step = 2; refresh();
+          if (!name) { refreshStep1('This needs a name.'); return; }
+          draft.name = name; refreshStep1(); goStep(2);
         } })
       ];
       return [
-        U.btn('Previous', { onTap: function () { step = 1; refresh(); } }),
+        U.btn('Previous', { onTap: function () { goStep(1); } }),
         U.btn('Cancel', { onTap: function () { U.shut(); } }),
         U.btn(existing ? 'Save' : 'Add', { look: 'go', onTap: submit })
       ];
     }
 
+    /* Both steps built once, up front, and kept in the DOM the whole time —
+       navigating just toggles which one is visible. A modal must not change
+       height while the reader is inside it, and a multi-step one is pinned
+       to its tallest step from first render, not re-measured per step: move
+       from step 2 to step 1 and back, and framesWrap never moves under the
+       pointer. */
+    step1Container.appendChild(buildStep1());
+    step2Container.appendChild(buildStep2());
+    var stepsIndicatorEl = U.el('div', {}, [ U.steps(['Which type, and where', 'Who is involved'], 0) ]);
+    var framesWrap = U.el('div', { style: 'margin-top:16px' }, [ step1Container, step2Container ]);
+
     var win = U.panel({
       title: (existing ? 'Edit ' : 'Add ') + t('disaster'),
-      body: U.el('div', {}, [
-        U.steps(['Which type, and where', 'Who is involved'], step - 1),
-        U.el('div', { style: 'margin-top:16px' }, [ step === 1 ? buildStep1() : buildStep2() ])
-      ]),
+      body: U.el('div', {}, [ stepsIndicatorEl, framesWrap ]),
       doThis: buildButtons()
     });
 
-    function refresh() {
-      var mid = win.body.querySelector('.panel__mid');
-      U.empty(mid);
-      mid.appendChild(U.steps(['Which type, and where', 'Who is involved'], step - 1));
-      mid.appendChild(U.el('div', { style: 'margin-top:16px' }, [ step === 1 ? buildStep1() : buildStep2() ]));
-      var end = win.body.querySelector('.panel__end');
-      U.empty(end);
-      buildButtons().forEach(function (b) { end.appendChild(b); });
+    /* The phone frame renders inside a scaled ancestor (.zoom, so a 412px
+       device fits the pane) — getBoundingClientRect() returns the height
+       AFTER that scale, but a min-height set in CSS is read BEFORE it and
+       then scaled again on render. Pin the wrong number and the panel
+       silently resizes on phone by exactly the scale factor while staying
+       correct on desktop, where no ancestor scales anything. Divide the
+       measurement back out so the same real height is what gets pinned. */
+    function ancestorScale(el) {
+      var n = el;
+      while (n && n !== document.body) {
+        var m = getComputedStyle(n).transform;
+        if (m && m !== 'none') {
+          var nums = m.match(/matrix\(([^)]+)\)/);
+          if (nums) return parseFloat(nums[1].split(',')[0]) || 1;
+        }
+        n = n.parentElement;
+      }
+      return 1;
     }
+    var scale = ancestorScale(framesWrap);
+    step2Container.style.display = 'none';
+    var h1 = step1Container.getBoundingClientRect().height / scale;
+    step1Container.style.display = 'none'; step2Container.style.display = '';
+    var h2 = step2Container.getBoundingClientRect().height / scale;
+    step2Container.style.display = 'none'; step1Container.style.display = '';
+    framesWrap.style.minHeight = Math.max(h1, h2) + 'px';
   }
 
   function editDisaster(d) { openDisasterWizard(d); }
@@ -3344,7 +3395,6 @@ addScreen('sites', '{Sites}', function (c) {
       name: '', disaster: (liveDisasters[0] && liveDisasters[0].id) || '', org: defaultOrg(), contactName: '', contactPhone: '',
       street: '', area: region.areaList[0], people: SITE_PEOPLE_DEFAULT, facilities: []
     };
-    var nameError = null, contactError = null;
     var facilitiesEl = U.el('div', {}, []);
 
     function buildFacilities() {
@@ -3376,11 +3426,11 @@ addScreen('sites', '{Sites}', function (c) {
 
     var nameField = U.line({ value: draft.name, hint: 'e.g. Lake Charles civic center' });
     nameField.addEventListener('input', function () { draft.name = nameField.value; });
-    var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError });
+    var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true });
 
     var contactField = U.line({ value: draft.contactName, hint: 'Who collects deliveries here' });
     contactField.addEventListener('input', function () { draft.contactName = contactField.value; });
-    var contactWrap = U.ask({ label: 'Contact person', field: contactField, needed: true, wrong: contactError });
+    var contactWrap = U.ask({ label: 'Contact person', field: contactField, needed: true });
 
     var phoneField = U.line({ value: draft.contactPhone, hint: region.phoneShape, type: 'tel' });
     phoneField.addEventListener('input', function () { draft.contactPhone = phoneField.value; });
@@ -3402,17 +3452,30 @@ addScreen('sites', '{Sites}', function (c) {
     var peopleField = U.howMany({ value: draft.people, low: 0, high: SITE_PEOPLE_MAX, step: SITE_PEOPLE_STEP,
       spoken: 'People it would serve' });
 
+    /* One field at a time, revealed in sequence — never every problem at
+       once. A field that now passes is rebuilt clean the moment a later
+       field is checked, so a fixed field never keeps showing a stale error;
+       an untouched field's error is deliberately left standing until the
+       next submit attempt, not cleared on input — that stays a live
+       question, not settled here. */
     function submit() {
       var name = nameField.value.trim(), contactName = contactField.value.trim();
-      var bad = false;
-      if (!name) { nameError = 'This needs a name.'; bad = true; }
-      if (!contactName) { contactError = 'Who collects deliveries here?'; bad = true; }
-      if (bad) {
-        if (nameError) { var f1 = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError }); nameWrap.replaceWith(f1); nameWrap = f1; }
-        if (contactError) { var f2 = U.ask({ label: 'Contact person', field: contactField, needed: true, wrong: contactError }); contactWrap.replaceWith(f2); contactWrap = f2; }
-        (nameError ? nameField : contactField).focus();
+      if (!name) {
+        var f1 = U.ask({ label: 'Name', field: nameField, needed: true, wrong: 'This needs a name.' });
+        nameWrap.replaceWith(f1); nameWrap = f1; nameField.focus();
         return;
       }
+      var cleanName = U.ask({ label: 'Name', field: nameField, needed: true });
+      nameWrap.replaceWith(cleanName); nameWrap = cleanName;
+
+      if (!contactName) {
+        var f2 = U.ask({ label: 'Contact person', field: contactField, needed: true, wrong: 'Who collects deliveries here?' });
+        contactWrap.replaceWith(f2); contactWrap = f2; contactField.focus();
+        return;
+      }
+      var cleanContact = U.ask({ label: 'Contact person', field: contactField, needed: true });
+      contactWrap.replaceWith(cleanContact); contactWrap = cleanContact;
+
       var fields = { name: name, disaster: disasterField.value, org: orgField.value, contactName: contactName,
         contactPhone: phoneField.value.trim(), street: streetField.value.trim(), area: areaField.value,
         room: peopleField.read(), facilities: draft.facilities.slice() };
@@ -4486,7 +4549,7 @@ var CHECK = (function () {
      it traps a wheel gesture, hides content behind an invisible edge, and on a
      phone it fights the page. */
   var ALLOWED_SCROLLERS = ['.page', '.side__scroll', '.m-body', '.grid-wrap',
-                           '.who__list', '.panel', '.stage', '.fold__body'];
+                           '.who__list', '.panel__mid', '.stage', '.fold__body'];
 
   function scrolls() {
     var hits = [];
