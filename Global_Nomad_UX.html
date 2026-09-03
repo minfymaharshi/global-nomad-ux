@@ -563,6 +563,19 @@ h3.t3 { font-size: var(--t-h3); font-weight: 650; margin: var(--sp5) 0 var(--sp2
 .kit-in.hand .d-hero span { font-size: 13px; }
 .kit-in.hand .d-foot { font-size: 13px; }
 
+/* fulfilment — appended below the three counts, never replacing them. A
+   second hero number (percent delivered) is deliberately smaller than the
+   card's main one (people affected still leads), so the eye still lands on
+   what the disaster IS before what it has received. */
+.d-fulfil { margin-top: var(--sp3); padding-top: var(--sp3); border-top: 1px solid var(--rule-soft); }
+.d-fulfil .d-hero b { font-size: 20px; }
+.d-fulfil .meter { margin-top: var(--sp3); }
+.d-fulfil .mrow { display: flex; justify-content: space-between; gap: var(--sp3); margin-top: 6px;
+  font-size: 12px; color: var(--text-3); }
+.d-fulfil .rows.three { margin-top: var(--sp3); }
+.kit-in.hand .d-fulfil .d-hero b { font-size: 22px; }
+.kit-in.hand .d-fulfil .mrow { font-size: 13px; }
+
 /* asking for something */
 .ask { display: block; margin-bottom: var(--sp4); }
 .ask > .ask__label { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 5px; }
@@ -868,6 +881,15 @@ function liveDisasterTypes() {
 }
 var DISASTER_PEOPLE_DEFAULT = 1000, DISASTER_PEOPLE_MAX = 1000000, DISASTER_PEOPLE_STEP = 100;
 
+/* same shape as DISASTER_TYPES — a fixed starting list, a live copy in
+   Store state so an add-your-own persists for real */
+var SITE_FACILITIES = ['Cold storage', 'Kitchen', 'Food service', 'Medical care', 'Drinking water', 'Power backup'];
+function liveSiteFacilities() {
+  var extra = (Store.s && Store.s.siteFacilities) || SITE_FACILITIES;
+  return extra.length ? extra : SITE_FACILITIES;
+}
+var SITE_PEOPLE_DEFAULT = 200, SITE_PEOPLE_MAX = 100000, SITE_PEOPLE_STEP = 50;
+
 
 /* ==============================================================================
    2 · REGIONS — the places
@@ -1004,9 +1026,12 @@ var REGIONS = {
          note:'Multi-vortex tornado tracked through northern Tuscaloosa County. Response wound down once every request was delivered and no new ones came in.'}
       ],
       sites:[
-        {id:'SITE-01', org:'ORG-R1', disaster:'DIS-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE'},
-        {id:'SITE-02', org:'ORG-R1', disaster:'DIS-01', name:'Sulphur community center',  street:'101 N Huntington St, Sulphur',   area:'Louisiana', post:'70663', lat:30.2366, lng:-93.3774, people:920,  room:1100, lead:null,    status:'ACTIVE'},
-        {id:'SITE-03', org:'ORG-R1', disaster:'DIS-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE'}
+        {id:'SITE-01', org:'ORG-R1', disaster:'DIS-01', name:'Lake Charles civic center', street:'900 Lakeshore Dr, Lake Charles', area:'Louisiana', post:'70601', lat:30.2266, lng:-93.2174, people:1850, room:2200, lead:'P-SITE', status:'ACTIVE',
+         contactName:'Rosa Delgado', contactPhone:'+1 (337) 000-0012', facilities:['Kitchen','Drinking water']},
+        {id:'SITE-02', org:'ORG-R1', disaster:'DIS-01', name:'Sulphur community center',  street:'101 N Huntington St, Sulphur',   area:'Louisiana', post:'70663', lat:30.2366, lng:-93.3774, people:920,  room:1100, lead:null,    status:'ACTIVE',
+         contactName:'Denise Fontenot', contactPhone:'+1 (337) 000-0031', facilities:['Kitchen','Medical care']},
+        {id:'SITE-03', org:'ORG-R1', disaster:'DIS-01', name:'Jennings fairgrounds',      street:'203 Rue de Acadie, Jennings',   area:'Louisiana', post:'70546', lat:30.2224, lng:-92.6571, people:2400, room:2600, lead:null,    status:'ACTIVE',
+         contactName:'Marcus Thibodeaux', contactPhone:'+1 (337) 000-0032', facilities:['Cold storage','Kitchen','Power backup']}
       ],
       stores:[
         {id:'STORE-01', org:'ORG-W1', runBy:'PLATFORM', name:'Houston distribution center', area:'Texas',     post:'77032', lat:29.9844, lng:-95.3414, pallets:2400, chilled:true,  disasters:['DIS-01']},
@@ -1304,6 +1329,7 @@ var Store = (function () {
       /* a copy, not the constant itself — adding a type in the wizard grows
          this list for real, so it has to be this place's own data */
       disasterTypes: DISASTER_TYPES.slice(),
+      siteFacilities: SITE_FACILITIES.slice(),
       /* built up as journeys are played */
       requests: [], requestLines: [], holds: [],
       deliveries: [], stops: [], loadLines: [],
@@ -2328,6 +2354,7 @@ var PEOPLE_VIEWS = [
         ['disasters','Disasters','storm'],
         ['orgs','Organisations','building'],
         ['stores','{Stores}','warehouse'],
+        ['sites','{Sites}','shelter'],
         ['fleet','Drivers & fleets','truck']
       ]},
       { label:'Records & people', items:[
@@ -2502,7 +2529,7 @@ function screenName(id) { var s = SCREENS[id]; return s ? words(s.name) : id; }
   ['people','People'], ['fleet','Drivers & fleets'],
   ['history','What happened'],
 
-  ['lead-overview','Overview'], ['sites','{Sites}'], ['ask','Ask for supplies'],
+  ['lead-overview','Overview'], ['ask','Ask for supplies'],
   ['requests','Requests'], ['track','Track deliveries'], ['reports','Reports'],
 
   ['site-overview','Overview'], ['site-ask','Ask for supplies'], ['coming','Coming here'],
@@ -2572,6 +2599,22 @@ function storesFor(d) {
   return Store.live('stores', function (s) { return (s.disasters || []).indexOf(d.id) > -1; });
 }
 function disasterStores(d) { return storesFor(d).length; }
+
+/* How fulfilment is going. Real math over a real (currently always empty)
+   record kind — nothing here is invented. Requests aren't raised by any
+   built flow yet, so every disaster reads a true zero until one exists;
+   the schema (id, disaster, status) is settled now so that flow, whenever
+   it is built, writes into exactly this shape. */
+function disasterRequests(d) {
+  return Store.live('requests', function (r) { return r.disaster === d.id; });
+}
+function disasterFulfillment(d) {
+  var all = disasterRequests(d);
+  var delivered = all.filter(function (r) { return r.status === 'DONE'; }).length;
+  var onTheWay = all.filter(function (r) { return r.status === 'ON_THE_WAY'; }).length;
+  return { total: all.length, delivered: delivered, onTheWay: onTheWay,
+    notStarted: all.length - delivered - onTheWay, percent: CALC.percent(delivered, all.length) };
+}
 
 /* A fleet or a volunteer driver comes in one of two ways: tagged directly,
    or riding along because the warehouse it is based at was tagged. Both are
@@ -2770,7 +2813,7 @@ addScreen('disasters', 'Disasters', function (c) {
             level: null, declared: new Date().toISOString(), peopleAffected: draft.peopleAffected,
             lat: null, lng: null, reach_m: null, status: 'ACTIVE', note: null,
             archived: false, archivedAt: null, archivedBy: null, archiveWhy: null,
-            addedBy: c.person.id, addedByOrg: c.person.org, fromCatalogue: true });
+            addedBy: c.person.id, addedByOrg: c.person.org, fromCatalogue: isAdmin });
           Store.note('Declared', T('disaster') + ' ' + draft.name, c.person.id);
         }
         function applyTags(kind, ids) {
@@ -2900,6 +2943,34 @@ addScreen('disasters', 'Disasters', function (c) {
     return U.chip(disasterStatusWord(d.status), d.status === 'ACTIVE' ? 'hold' : null);
   }
 
+  /* Appended below the three counts, never replacing them — a percentage of
+     nothing is not a number worth showing, so an empty request list gets a
+     plain line instead of a hollow "0% arrived". */
+  function fulfillmentBlock(d) {
+    var f = disasterFulfillment(d);
+    if (!f.total) {
+      return U.el('div', { class: 'd-fulfil' }, [
+        U.el('p', { class: 'tip', style: 'margin:0', text: 'No requests raised yet.' })
+      ]);
+    }
+    return U.el('div', { class: 'd-fulfil' }, [
+      U.el('div', { class: 'd-hero' }, [
+        U.el('b', { text: FMT.count(Math.round(f.percent)) + '%' }),
+        U.el('span', { text: 'of what was asked for has arrived' })
+      ]),
+      U.meter(f.percent, 'Share of requests delivered for ' + d.name),
+      U.el('div', { class: 'mrow' }, [
+        U.el('span', { text: FMT.count(f.delivered) + ' of ' + FMT.count(f.total) + ' requests' }),
+        U.el('span', { text: FMT.count(f.onTheWay) + ' on the way' })
+      ]),
+      U.el('div', { class: 'rows three' }, [
+        U.figure(FMT.count(f.delivered), 'Delivered'),
+        U.figure(FMT.count(f.onTheWay), 'On the way'),
+        U.figure(FMT.count(f.notStarted), 'Not started')
+      ])
+    ]);
+  }
+
   function disasterCard(d) {
     var closed = d.status === 'CLOSED';
     var kids = [
@@ -2919,7 +2990,8 @@ addScreen('disasters', 'Disasters', function (c) {
         U.figure(FMT.count(disasterOrgs(d)), T('orgs')),
         U.figure(FMT.count(disasterShelters(d)), T('sites')),
         U.figure(FMT.count(disasterStores(d)), T('stores'))
-      ])
+      ]),
+      fulfillmentBlock(d)
     ];
     if (closed && d.closedAt) {
       kids.push(U.el('div', { class: 'd-foot' }, [
@@ -2943,6 +3015,10 @@ addScreen('disasters', 'Disasters', function (c) {
         { label: T('sites'), cell: function (d) { return FMT.count(disasterShelters(d)); }, figs: true },
         { label: T('stores'), cell: function (d) { return FMT.count(disasterStores(d)); }, figs: true },
         { label: 'People affected', cell: function (d) { return FMT.count(d.peopleAffected); }, figs: true },
+        { label: 'Delivered', cell: function (d) {
+            var f = disasterFulfillment(d);
+            return f.total ? FMT.count(f.delivered) + ' of ' + FMT.count(f.total) : '—';
+          }, figs: true },
         { label: '', cell: function (d) { return moreButton(d); } }
       ],
       rows: rows
@@ -3206,6 +3282,286 @@ addScreen('stores', '{Stores}', function (c) {
 
   return U.el('div', { class: 'm-page' }, [
     U.el('h1', { class: 't1', text: T('stores') }),
+    toolbar(),
+    toggles,
+    body
+  ]);
+});
+
+/* ------------------------------------------------------------------------------
+   Shelters — a Relief Org Admin's own list, same pattern as Disasters and
+   Warehouses. Super Admin sees and can manage every shelter; a Relief Org
+   Admin sees the full network too (confirmed 2026-09-02) but only manages
+   the ones their own org runs — same per-record check as Disasters.
+   ------------------------------------------------------------------------------ */
+var sitesUI = { q: '', disaster: '', zone: '', view: 'card' };
+
+function siteFullAddress(s) { return s.street + ', ' + s.area; }
+function siteFillPercent(s) { return CALC.percent(s.people, s.room); }
+
+addScreen('sites', '{Sites}', function (c) {
+  var isAdmin = c.person.job === 'ADMIN';
+  var canAdd = isAdmin || c.person.job === 'RELIEF_LEAD';
+  function canManageRecord(s) { return isAdmin || (c.person.job === 'RELIEF_LEAD' && s.org === c.person.org); }
+  var region = Store.place;
+  var liveDisasters = Store.live('disasters');
+
+  function disasterName(id) { var d = Store.one('disasters', id); return d ? d.name : null; }
+
+  function matches(s) {
+    if (sitesUI.disaster && s.disaster !== sitesUI.disaster) return false;
+    if (sitesUI.zone && s.area !== sitesUI.zone) return false;
+    var q = sitesUI.q.trim().toLowerCase();
+    if (q && (s.name + ' ' + s.street + ' ' + s.area).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }
+
+  var pool = Store.live('sites');
+  var rows = pool.filter(matches).slice().sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+
+  function clearFilters() { sitesUI.q = ''; sitesUI.disaster = ''; sitesUI.zone = ''; c.again(); }
+
+  /* A shelter is always relief-org-run in this model — never the platform
+     itself — so Super Admin needs a real choice here, not a default of
+     their own (platform) org. A Relief Org Admin's own org is offered
+     first, since that is who they almost always mean. */
+  var liveReliefOrgs = Store.live('orgs', function (o) { return o.kind === 'RELIEF' && o.status === 'ACTIVE'; });
+  function defaultOrg() {
+    if (liveReliefOrgs.some(function (o) { return o.id === c.person.org; })) return c.person.org;
+    return (liveReliefOrgs[0] && liveReliefOrgs[0].id) || '';
+  }
+
+  /* One panel, one step — the fields are flat enough that a second step
+     would only add navigation, not clarity. Facilities is the one new
+     interaction: a toggle-chip multi-select rather than the disaster type
+     picker's single-select, plus the same real, persistent add-your-own. */
+  function openSiteForm(existing) {
+    var draft = existing ? {
+      name: existing.name, disaster: existing.disaster, org: existing.org, contactName: existing.contactName || '',
+      contactPhone: existing.contactPhone || '', street: existing.street, area: existing.area,
+      people: existing.room, facilities: (existing.facilities || []).slice()
+    } : {
+      name: '', disaster: (liveDisasters[0] && liveDisasters[0].id) || '', org: defaultOrg(), contactName: '', contactPhone: '',
+      street: '', area: region.areaList[0], people: SITE_PEOPLE_DEFAULT, facilities: []
+    };
+    var nameError = null, contactError = null;
+    var facilitiesEl = U.el('div', {}, []);
+
+    function buildFacilities() {
+      var chips = liveSiteFacilities().map(function (f) {
+        var on = draft.facilities.indexOf(f) > -1;
+        return U.el('button', { type: 'button', class: 'chip' + (on ? ' solid' : ''), 'aria-pressed': String(on),
+          onclick: function () {
+            if (on) draft.facilities = draft.facilities.filter(function (x) { return x !== f; });
+            else draft.facilities.push(f);
+            refreshFacilities();
+          } }, [f]);
+      });
+      var newField = U.line({ hint: 'Add a facility' });
+      var addBtn = U.btn('Add', { size: 'small', onTap: function () {
+        var v = newField.value.trim();
+        if (!v) return;
+        var match = liveSiteFacilities().filter(function (f) { return f.toLowerCase() === v.toLowerCase(); })[0];
+        if (!match) Store.change(function (now) { now.siteFacilities.push(v); });
+        if (draft.facilities.indexOf(match || v) < 0) draft.facilities.push(match || v);
+        refreshFacilities();
+      } });
+      return [
+        U.el('div', { class: 'line wrap', style: 'gap:8px' }, chips),
+        U.el('div', { class: 'line', style: 'margin-top:10px;gap:8px;align-items:flex-end' }, [newField, addBtn])
+      ];
+    }
+    function refreshFacilities() { U.empty(facilitiesEl); buildFacilities().forEach(function (n) { facilitiesEl.appendChild(n); }); }
+    buildFacilities().forEach(function (n) { facilitiesEl.appendChild(n); });
+
+    var nameField = U.line({ value: draft.name, hint: 'e.g. Lake Charles civic center' });
+    nameField.addEventListener('input', function () { draft.name = nameField.value; });
+    var nameWrap = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError });
+
+    var contactField = U.line({ value: draft.contactName, hint: 'Who collects deliveries here' });
+    contactField.addEventListener('input', function () { draft.contactName = contactField.value; });
+    var contactWrap = U.ask({ label: 'Contact person', field: contactField, needed: true, wrong: contactError });
+
+    var phoneField = U.line({ value: draft.contactPhone, hint: region.phoneShape, type: 'tel' });
+    phoneField.addEventListener('input', function () { draft.contactPhone = phoneField.value; });
+
+    var disasterField = U.choose({ value: draft.disaster,
+      options: liveDisasters.map(function (d) { return { value: d.id, label: d.name }; }) });
+    disasterField.addEventListener('change', function () { draft.disaster = disasterField.value; });
+
+    var orgField = U.choose({ value: draft.org,
+      options: liveReliefOrgs.map(function (o) { return { value: o.id, label: o.name }; }) });
+    orgField.addEventListener('change', function () { draft.org = orgField.value; });
+
+    var streetField = U.line({ value: draft.street, hint: 'Street address' });
+    streetField.addEventListener('input', function () { draft.street = streetField.value; });
+
+    var areaField = U.choose({ value: draft.area, options: region.areaList.map(function (z) { return { value: z, label: z }; }) });
+    areaField.addEventListener('change', function () { draft.area = areaField.value; });
+
+    var peopleField = U.howMany({ value: draft.people, low: 0, high: SITE_PEOPLE_MAX, step: SITE_PEOPLE_STEP,
+      spoken: 'People it would serve' });
+
+    function submit() {
+      var name = nameField.value.trim(), contactName = contactField.value.trim();
+      var bad = false;
+      if (!name) { nameError = 'This needs a name.'; bad = true; }
+      if (!contactName) { contactError = 'Who collects deliveries here?'; bad = true; }
+      if (bad) {
+        if (nameError) { var f1 = U.ask({ label: 'Name', field: nameField, needed: true, wrong: nameError }); nameWrap.replaceWith(f1); nameWrap = f1; }
+        if (contactError) { var f2 = U.ask({ label: 'Contact person', field: contactField, needed: true, wrong: contactError }); contactWrap.replaceWith(f2); contactWrap = f2; }
+        (nameError ? nameField : contactField).focus();
+        return;
+      }
+      var fields = { name: name, disaster: disasterField.value, org: orgField.value, contactName: contactName,
+        contactPhone: phoneField.value.trim(), street: streetField.value.trim(), area: areaField.value,
+        room: peopleField.read(), facilities: draft.facilities.slice() };
+      Store.change(function (now) {
+        if (existing) {
+          var r = now.sites.filter(function (x) { return x.id === existing.id; })[0];
+          if (r) Object.keys(fields).forEach(function (k) { r[k] = fields[k]; });
+          Store.note('Edited', T('site') + ' ' + name, c.person.id);
+        } else {
+          var made = { id: Store.nextId('SITE'), people: 0, lead: null, status: 'ACTIVE', lat: null, lng: null, post: null,
+            archived: false, archivedAt: null, archivedBy: null, archiveWhy: null,
+            addedBy: c.person.id, addedByOrg: c.person.org, fromCatalogue: isAdmin };
+          Object.keys(fields).forEach(function (k) { made[k] = fields[k]; });
+          now.sites.push(made);
+          Store.note('Added', T('site') + ' ' + name, c.person.id);
+        }
+      });
+      U.shut();
+      U.brief(existing ? 'Saved' : 'Added', name + (existing ? ' is updated.' : ' is on the list.'), 'good');
+      c.again();
+    }
+
+    U.panel({
+      title: (existing ? 'Edit ' : 'Add ') + t('site'),
+      body: U.el('div', { style: 'display:flex;flex-direction:column;gap:16px' }, [
+        nameWrap,
+        contactWrap,
+        U.ask({ label: 'Contact phone', field: phoneField }),
+        U.ask({ label: 'Disaster', field: disasterField }),
+        U.ask({ label: 'Organisation', field: orgField }),
+        U.ask({ label: 'Street address', field: streetField }),
+        U.ask({ label: T('area'), field: areaField }),
+        U.ask({ label: 'People it would serve', field: peopleField }),
+        U.el('div', {}, [
+          U.el('label', { class: 'ask__label', style: 'display:block;margin-bottom:8px', text: 'Facilities' }),
+          facilitiesEl
+        ])
+      ]),
+      doThis: [
+        U.btn('Cancel', { onTap: function () { U.shut(); } }),
+        U.btn(existing ? 'Save' : 'Add', { look: 'go', onTap: submit })
+      ]
+    });
+  }
+
+  function editSite(s) { openSiteForm(s); }
+
+  function moreButton(s) {
+    if (!canManageRecord(s)) return null;
+    var label = s.name + ' — edit';
+    return U.el('button', { class: 'icon-btn', title: label, 'aria-label': label,
+      onclick: function () { editSite(s); } }, [ U.ico('save', 16) ]);
+  }
+
+  function siteCard(s) {
+    var dName = disasterName(s.disaster);
+    var kids = [
+      U.el('div', { class: 'd-card__top' }, [
+        U.el('div', { class: 'd-card__id' }, [
+          U.el('p', { class: 'd-name', text: s.name }),
+          U.el('p', { class: 'd-where', text: siteFullAddress(s) }),
+          dName ? U.el('p', { class: 'tip', style: 'margin:2px 0 0', text: 'For ' + dName }) : null
+        ]),
+        moreButton(s)
+      ]),
+      (s.facilities || []).length
+        ? U.el('div', { class: 'line wrap', style: 'margin-top:10px' }, s.facilities.map(function (f) { return U.chip(f); }))
+        : null,
+      U.el('div', { class: 'd-hero' }, [
+        U.el('b', { text: FMT.count(s.people) }), U.el('span', { text: 'people here now' })
+      ]),
+      U.el('div', { class: 'rows three' }, [
+        U.figure(FMT.count(s.room), 'Capacity'),
+        U.figure(FMT.count(Math.round(siteFillPercent(s))) + '%', 'Full'),
+        U.figure(FMT.count((s.facilities || []).length), 'Facilities')
+      ])
+    ];
+    if (s.contactName) {
+      kids.push(U.el('div', { class: 'd-foot' }, [
+        U.ico('person', 14),
+        U.el('span', { text: s.contactName + (s.contactPhone ? ' · ' + s.contactPhone : '') })
+      ]));
+    }
+    return U.el('article', { class: 'box d-card' }, kids);
+  }
+
+  function tableView() {
+    return U.grid({
+      about: T('sites'),
+      cols: [
+        { label: 'Name', cell: function (s) { return U.el('b', { text: s.name }); } },
+        { label: 'For', cell: function (s) { return disasterName(s.disaster) || '—'; } },
+        { label: T('area'), cell: function (s) { return s.area; } },
+        { label: 'Contact', cell: function (s) { return s.contactName || '—'; } },
+        { label: 'People here', cell: function (s) { return FMT.count(s.people); }, figs: true },
+        { label: 'Capacity', cell: function (s) { return FMT.count(s.room); }, figs: true },
+        { label: '', cell: function (s) { return moreButton(s); } }
+      ],
+      rows: rows
+    });
+  }
+
+  function toolbar() {
+    var searchField = U.line({ value: sitesUI.q, hint: 'Search by name or address',
+      onType: function (e) { sitesUI.q = e.target.value; c.again(); } });
+    searchField.setAttribute('data-keep-focus', 'sites-search');
+
+    function filter(label, value, options, onSet) {
+      return U.ask({ label: label, field: U.choose({
+        value: value, options: [{ value: '', label: 'All' }].concat(options),
+        onSet: function (e) { onSet(e.target.value); c.again(); }
+      }) });
+    }
+
+    return U.el('div', { class: 'line wrap', style: 'align-items:flex-end;gap:12px;margin-bottom:16px' }, [
+      U.ask({ label: 'Search', field: searchField }),
+      filter('Disaster', sitesUI.disaster,
+        liveDisasters.map(function (d) { return { value: d.id, label: d.name }; }),
+        function (v) { sitesUI.disaster = v; }),
+      filter(T('area'), sitesUI.zone,
+        region.areaList.map(function (z) { return { value: z, label: z }; }),
+        function (v) { sitesUI.zone = v; }),
+      U.el('span', { class: 'fill' }),
+      canAdd ? U.btn('Add ' + t('site'), { icon: 'plus', look: 'go', onTap: function () { openSiteForm(null); } }) : null
+    ]);
+  }
+
+  var toggles = c.view === 'desk'
+    ? U.el('div', { class: 'line wrap', style: 'margin-bottom:20px' }, [
+        segmented('View', sitesUI.view,
+          [{ value: 'card', label: 'Cards' }, { value: 'table', label: 'Table' }],
+          function (v) { sitesUI.view = v; }, c)
+      ])
+    : null;
+
+  var body;
+  if (!pool.length) {
+    body = U.none({ headline: 'No ' + t('sites') + ' yet', detail: 'Nothing has been added for ' + region.name + '.' });
+  } else if (!rows.length) {
+    body = U.none({ headline: 'Nothing matches', detail: 'Try a different search, or clear the filters.',
+      doThis: U.btn('Clear filters', { size: 'small', onTap: clearFilters }) });
+  } else if (c.view === 'desk' && sitesUI.view === 'table') {
+    body = tableView();
+  } else {
+    body = U.el('div', { class: 'd-grid' }, rows.map(siteCard));
+  }
+
+  return U.el('div', { class: 'm-page' }, [
+    U.el('h1', { class: 't1', text: T('sites') }),
     toolbar(),
     toggles,
     body

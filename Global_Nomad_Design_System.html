@@ -1089,6 +1089,9 @@ body[data-face="mob"] .d-foot { font-size:13px; }
       <dt>Who gets a menu at all</dt><dd>Super Admin, on every card — declaring or closing a disaster is a network-wide act. A Relief Org Admin gets one only on a disaster their own org declared: <code>d.addedByOrg === c.person.org</code>. Both personas can add a new one; managing an existing one is scoped by who opened it, checked per record, not once for the whole page — so the same list shows a different set of kebabs to each without being two different screens.</dd>
       <dt>Access</dt><dd>The icon button carries its own <code>title</code> and <code>aria-label</code> — “Hurricane Marisol — more actions”, never just “More”. Each action inside the panel confirms in its own words naming the record, never a bare “Are you sure?”.</dd>
       <dt>For developers</dt><dd><code>.icon-btn</code> had no phone-size rule at all until this card needed one on Super Admin's phone surface — it had only ever been used inside desktop-only chrome before. Any icon button used inside actual page content needs the same check: does it meet 44px where the page can be viewed on a phone, not just where it happens to be used today.</dd>
+      <dt>Fulfilment — <code>.d-fulfil</code></dt><dd>Appended below the three counts on a disaster card, never replacing them — a Relief Org Admin and Super Admin see the exact same block, since Disasters is one shared screen. Percent delivered, a <code>meter()</code> bar, "N of M requests" against "N on the way", then Delivered / On the way / Not started as three more <code>figure()</code> boxes — the same rhythm as the counts above it, at a smaller hero size (20px against the card's 26px) so the eye still lands on what the disaster <em>is</em> before what it has received.</dd>
+      <dt>An empty request list gets a line, not a hollow percentage</dt><dd>Zero requests reads as "No requests raised yet", never "0% of what was asked for has arrived" — a percentage of nothing is not a number worth showing, and a true zero next to a made-up-looking round number reads as broken, not empty. This stayed true on the day it shipped: no disaster in the seed has a real request yet, so every card showed this line until one was raised by hand to prove the populated state.</dd>
+      <dt>For developers — the schema exists before the flow that fills it</dt><dd><code>requests</code> has real shape now — <code>id</code>, <code>disaster</code>, <code>status</code> — even though nothing raises one yet; the request-raising flow itself is still a <code>later()</code> stub. Whatever builds it must write into this exact shape, or <code>disasterFulfillment()</code> silently stops finding anything.</dd>
     </dl></div>
   </article>
 
@@ -1167,6 +1170,27 @@ body[data-face="mob"] .d-foot { font-size:13px; }
       <dt>Automatic and manual never overlap</dt><dd>A fleet or volunteer riding in via a ticked warehouse does not also appear in the manual "add others" list — it would be the same inclusion counted, and offered to be unticked, twice. The moment its warehouse is unticked, it reappears there as a real choice.</dd>
       <dt>What a tick actually writes</dt><dd>Only what was ticked by hand. A fleet included automatically is never written to its own <code>disasters</code> field — the relationship is computed fresh every time from which warehouses are tagged, the same way the Organisations count on a card is computed, not stored twice.</dd>
       <dt>For developers</dt><dd>Every field is read from the live DOM at submit — nothing is mirrored into a parallel state object except where a value has to survive a full step rebuild (name, type, the tag arrays). <code>refresh()</code> replaces the panel's own <code>.panel__mid</code> and <code>.panel__end</code> in place; the panel itself is never closed and reopened between steps, so <code>U.panel()</code>'s focus trap only ever engages once per wizard, not once per step.</dd>
+    </dl></div>
+  </article>
+
+  <!-- ------------------------------------------------------------ multi-select chips -->
+  <article class="entry">
+    <div class="entry__top"><h3>Toggle-chip multi-select</h3><code>.chip</code>
+      <p class="entry__why">A shelter's facilities — cold storage, kitchen, and
+        so on. The same chip-with-add-your-own idea as the disaster type
+        picker, but several can be true at once instead of exactly one.</p></div>
+    <div class="demo">
+      <div class="line wrap" style="gap:8px">
+        <button type="button" class="chip solid" aria-pressed="true">Cold storage</button>
+        <button type="button" class="chip solid" aria-pressed="true">Kitchen</button>
+        <button type="button" class="chip" aria-pressed="false">Food service</button>
+        <button type="button" class="chip" aria-pressed="false">Medical care</button>
+      </div>
+    </div>
+    <div class="spec"><dl>
+      <dt>One rule apart from the type picker</dt><dd>Clicking a chip here toggles it in or out of an array; the type picker's click replaces a single value. Same markup, same <code>aria-pressed</code>, same visual state — the only difference is what the click handler does with the result, which is exactly the difference between "which one" and "which of these".</dd>
+      <dt>Add-your-own persists the same way</dt><dd>Written into <code>Store.s.siteFacilities</code>, the same shape as <code>Store.s.disasterTypes</code> — a type or a facility added once is a real, permanent option everywhere that list is offered, not a local list that resets next session.</dd>
+      <dt>For developers</dt><dd>Caught while wiring this up, not specific to facilities: a record's <code>fromCatalogue</code> flag was hardcoded <code>true</code> in the disaster wizard from when only Super Admin could declare one. Once a Relief Org Admin could too, every disaster they added was wrongly stamped as platform-catalogue. Fixed to read <code>isAdmin</code> at the moment of creation instead of a fixed value — the shelter form was built correctly the first time because this had already been found. Whenever a permission model changes to let a second persona create something, re-check every hardcoded stamp on that creation path, not just the visibility gate.</dd>
     </dl></div>
   </article>
 </section>
